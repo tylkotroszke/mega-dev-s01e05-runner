@@ -110,7 +110,7 @@ function dockerArgs(prepared, name, image, timeoutMs) {
   return [
     'run', '--rm', '--pull=never', '--name', name,
     '--network=none', '--read-only', '--cap-drop=ALL', '--security-opt=no-new-privileges',
-    '--cap-add=SETUID', '--cap-add=SETGID', '--user=0:0', '--pids-limit=64', '--memory=512m', '--memory-swap=512m', '--cpus=1',
+    '--cap-add=SETUID', '--cap-add=SETGID', '--cap-add=KILL', '--user=0:0', '--pids-limit=64', '--memory=512m', '--memory-swap=512m', '--cpus=1',
     '--ipc=none', '--log-driver=none', '--ulimit', 'fsize=67108864:67108864',
     '--tmpfs', '/tmp:rw,noexec,nosuid,nodev,size=67108864,mode=1777',
     '--tmpfs', '/report:rw,noexec,nosuid,nodev,size=1048576,uid=0,gid=0,mode=0700',

@@ -21,8 +21,8 @@
   },
   {
     "path": "Dockerfile.test",
-    "sha256": "6967d32a9f45afaa673aa4871a7e0f8f661fd5604513f6577fa0f5365dd56bcf",
-    "bytes": 1377
+    "sha256": "63528f85a8e1243c2e7128073adb990cad3440230ed291a0af057968aceadd46",
+    "bytes": 1457
   },
   {
     "path": "package.json",
@@ -66,8 +66,8 @@
   },
   {
     "path": "src/sandbox.mjs",
-    "sha256": "0c160b3c001e692fcf0d9b7c82f139165050a35511f5b30c35807ef4eb616f57",
-    "bytes": 13581
+    "sha256": "f0937849de2fe56d249a237bb9d4f4f9af325c8e3f74bf2e3bbe2b8f74aca0b5",
+    "bytes": 13599
   },
   {
     "path": "src/store.mjs",
@@ -91,8 +91,8 @@
   },
   {
     "path": "test/docker-smoke.mjs",
-    "sha256": "f94780de7b2aee6641fcadef08e9fbfb47add2ac04667904aa3e9b8499a6f30a",
-    "bytes": 3445
+    "sha256": "fadfc4a6bb87c4da7b38b33d2979d68eb12cb2dd395a1b7310fd8a551ee1557d",
+    "bytes": 4808
   },
   {
     "path": "test/gemini.test.mjs",
@@ -111,8 +111,8 @@
   },
   {
     "path": "test/sandbox.test.mjs",
-    "sha256": "52f41c4990db6da19e02c2888256952779004179cb3c94b3934558b8aed4a995",
-    "bytes": 15109
+    "sha256": "c78be4c6c45b2d9d3e29323f2950833f79e4107ce1ec01a9575f67cc1e0ad000",
+    "bytes": 15127
   },
   {
     "path": "test/worker.test.mjs",

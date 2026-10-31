@@ -10,11 +10,12 @@ RUN npm init -y \
 RUN mkdir -p /work/src /work/test /work/runs /report \
  && ln -s /opt/toolchain/node_modules /work/node_modules \
  && printf '%s\n' '{"type":"module","private":true}' > /work/package.json \
- && printf '%s\n' 'export default { root: "/work", cacheDir: "/tmp/vite-cache", esbuild: { jsx: "automatic", jsxImportSource: "hono/jsx" }, test: { environment: "node", fileParallelism: false, maxWorkers: 1, pool: "forks", isolate: true } };' > /opt/toolchain/vitest.config.mjs
+ && printf '%s\n' 'export default { root: "/work", cacheDir: "/tmp/vite-cache", oxc: { jsx: { runtime: "automatic", importSource: "hono/jsx" } }, test: { environment: "node", fileParallelism: false, maxWorkers: 1, pool: "forks", isolate: true } };' > /opt/toolchain/vitest.config.mjs
 COPY src/trusted-bootstrap.mjs /opt/toolchain/trusted-bootstrap.mjs
 # The trusted controller owns /report. Its bootstrap demotes every execution child
-# to UID/GID 65532 before any application/test module is loaded. Only SETUID and
-# SETGID capabilities are supplied at runtime; the child drops those on setuid.
+# to UID/GID 65532 before any application/test module is loaded. SETUID/SETGID
+# demote children; KILL lets the controller terminate them. Children drop all
+# effective capabilities on setuid (checked by the synthetic host self-test).
 USER 0:0
 WORKDIR /work
 ENTRYPOINT ["node", "/opt/toolchain/trusted-bootstrap.mjs"]

@@ -104,7 +104,7 @@ test('measures a real-report shape, enforces Docker boundaries and returns only 
   assert.equal(Object.hasOwn(result, 'stdout'), false);
   const call = fake.calls.find((entry) => entry.args[0] === 'run');
   assert.equal(call.command, 'docker'); assert.equal(call.options.shell, false);
-  for (const flag of ['--pull=never', '--network=none', '--read-only', '--cap-drop=ALL', '--cap-add=SETUID', '--cap-add=SETGID', '--security-opt=no-new-privileges', '--user=0:0', '--pids-limit=64', '--memory=512m', '--memory-swap=512m', '--cpus=1', '--log-driver=none']) assert.ok(call.args.includes(flag), flag);
+  for (const flag of ['--pull=never', '--network=none', '--read-only', '--cap-drop=ALL', '--cap-add=SETUID', '--cap-add=SETGID', '--cap-add=KILL', '--security-opt=no-new-privileges', '--user=0:0', '--pids-limit=64', '--memory=512m', '--memory-swap=512m', '--cpus=1', '--log-driver=none']) assert.ok(call.args.includes(flag), flag);
   assert.ok(call.args.filter((arg) => arg.startsWith('type=bind,')).filter((arg) => arg.includes('target=/work/')).every((arg) => arg.endsWith(',readonly')));
   assert.equal(call.args.some((arg) => arg.includes('docker.sock')), false);
   assert.equal(call.args.some((arg) => arg.startsWith('type=bind,') && arg.endsWith('target=/report')), false);
@@ -173,7 +173,7 @@ test('direct report-forgery topology is denied: only trusted controller owns the
   await assert.rejects(runRedTest({ root, files, testArtifact: attack, spawnImpl: fake.spawnImpl }));
   const call = fake.calls.find((entry) => entry.args[0] === 'run');
   assert.ok(call.args.includes('/report:rw,noexec,nosuid,nodev,size=1048576,uid=0,gid=0,mode=0700'));
-  assert.equal(call.args.filter((arg) => arg.startsWith('--cap-add=')).length, 2);
+  assert.equal(call.args.filter((arg) => arg.startsWith('--cap-add=')).length, 3);
 });
 
 test('exit 1, syntax/import errors, absent reports and different tests are not accepted as red', async (t) => {
