@@ -91,8 +91,8 @@
   },
   {
     "path": "test/docker-smoke.mjs",
-    "sha256": "f0cc4b07878fb14949ed34a6e587bb197f95b4568da4212a9644d410f27cde71",
-    "bytes": 2295
+    "sha256": "f94780de7b2aee6641fcadef08e9fbfb47add2ac04667904aa3e9b8499a6f30a",
+    "bytes": 3445
   },
   {
     "path": "test/gemini.test.mjs",

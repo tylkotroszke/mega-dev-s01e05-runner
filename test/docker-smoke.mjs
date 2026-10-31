@@ -1,10 +1,32 @@
 // Synthetic self-test only. No model, course source, key, reply or tracker is used.
 import assert from 'node:assert/strict';
+import {spawn} from 'node:child_process';
 import {runRedTest} from '../src/sandbox.mjs';
+// Diagnostic output is limited to this synthetic, secret-free self-test.
+// Production runRedTest keeps its default spawn implementation and hidden logs.
+function syntheticDiagnosticSpawn(command,args,options) {
+  const diagnosticArgs=[...args];
+  if(command==='docker' && args[0]==='run') {
+    const shellIndex=args.indexOf('-c');
+    if(shellIndex<0 || !args[shellIndex+1]?.includes('node /opt/toolchain/trusted-bootstrap.mjs')) throw new Error('unexpected self-test command');
+    const marker='result=$?;';
+    if(!args[shellIndex+1].includes(marker)) throw new Error('missing self-test status marker');
+    diagnosticArgs[shellIndex+1]=args[shellIndex+1].replace(marker,marker+' cat /tmp/vitest-output >&2;');
+  }
+  const child=spawn(command,diagnosticArgs,options);
+  if(command==='docker' && args[0]==='run') {
+    let emitted=0;
+    child.stderr?.on('data',chunk=>{
+      const remaining=32_000-emitted;
+      if(remaining>0) { const part=Buffer.from(chunk).subarray(0,remaining); process.stderr.write(part); emitted+=part.length; }
+    });
+  }
+  return child;
+}
 const artifact={path:'test/retained-item.test.ts',test:`import {it,expect} from 'vitest';
 import {items} from '../src/items.js';
 it('retains a valid item',()=>expect(items()).toHaveLength(1));`};
-const options={repoFiles:{},testArtifact:artifact,image:'signed-test-toolchain:local'};
+const options={repoFiles:{},testArtifact:artifact,image:'signed-test-toolchain:local',spawnImpl:syntheticDiagnosticSpawn};
 const measured=await runRedTest({...options,files:{'src/items.ts':'export function items(){return []}'} });
 assert.equal(measured.evidence.exitCode,1);
 assert.equal(measured.evidence.assertionFailures,1);
