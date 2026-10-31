@@ -81,6 +81,9 @@ export async function launchTrustedController({ testPath, testTimeout, importCon
   const reportDir = await lstat('/report');
   if (!reportDir.isDirectory() || reportDir.isSymbolicLink() || reportDir.uid !== 0 || (reportDir.mode & 0o077) !== 0) throw new Error('report directory is not protected from test workers');
   const args = controllerArguments(testPath, testTimeout);
+  // Vitest 5 always persists its local API token. Keep it in the root-only
+  // tmpfs instead of the read-only home/toolchain; children do not inherit XDG.
+  process.env.XDG_DATA_HOME = '/report/vitest-data';
   installUnprivilegedChildren();
   process.argv = args;
   await importController(pathToFileURL(CLI).href);
