@@ -3,7 +3,17 @@
   "main": "src/worker.mjs",
   "compatibility_date": "2026-10-31",
   "workers_dev": true,
-  "observability": {"enabled": false},
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+      "persist": true
+    },
+    "traces": {
+      "enabled": false
+    }
+  },
   "vars": {
     "AUTONOMOUS_REPLIES_ENABLED": "false",
     "MAX_JOBS_PER_DAY": "6",
@@ -13,5 +23,11 @@
     "RUNNER_WORKFLOW": "agents.yml",
     "RUNNER_REF": "approved-v1"
   },
-  "d1_databases": [{"binding":"INBOX","database_name":"mega-s01e05-inbox","database_id":"REPLACE_AFTER_APPROVAL"}]
+  "d1_databases": [
+    {
+      "binding": "INBOX",
+      "database_name": "mega-s01e05-inbox",
+      "database_id": "REPLACE_AFTER_APPROVAL"
+    }
+  ]
 }

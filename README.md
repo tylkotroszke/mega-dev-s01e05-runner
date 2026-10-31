@@ -8,6 +8,14 @@ Deployment is disabled by default. Both Worker AUTONOMOUS_REPLIES_ENABLED
 and GitHub Environment LIVE_EXECUTION_ENABLED require explicit owner approval.
 Do not use a repository secret instead of the selected Environment.
 
+The separate manual `deploy-disabled.yml` workflow accepts only the
+`deploy-disabled-v1` tag and uses Environment `mega-s01e05-deploy`.
+Its `CLOUDFLARE_DEPLOY_TOKEN` should have short-lived Editor access to this
+single Worker. It has no model key and performs one fixed script upload after
+checking that agents are disabled. It preserves existing plain-text/D1
+bindings, keeps logs enabled, and verifies the public health and manifest.
+A failed or uncertain upload is never retried automatically.
+
 ## Local verification
 
 Node 24: `npm test` (built-in node:test; no package install required).
