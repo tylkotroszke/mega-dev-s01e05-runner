@@ -1,0 +1,36 @@
+import {readTracker,chooseRelevantIssue,buildPulse,generateTest} from './agents.mjs';
+import {validateAnswer} from './protocol.mjs';
+
+// No network tools are exposed to the model. URLs and transport are controlled here.
+export async function processJob(job,{generate,runRedTest,fetchImpl=fetch}) {
+  const {ping,context,courseOrigin}=job;
+  const trackerURL=ping.kind==='pulse'?ping.tracker:`${courseOrigin}/rig/tracker/issues`;
+  let issues;
+  try { issues=await readTracker(trackerURL,{fetchImpl,courseOrigin}); }
+  catch {
+    if (ping.kind==='pulse') return {text:'pulse stopped: tracker unavailable'};
+    throw new Error('test tracker unavailable');
+  }
+  if (ping.kind==='pulse') {
+    const answer=await buildPulse({ping,context,issues,generate});
+    if (answer.text.startsWith('pulse stopped:')) return answer;
+    const selected=chooseRelevantIssue(issues,context.plan);
+    let latest;
+    try { latest=await readTracker(trackerURL,{fetchImpl,courseOrigin}); }
+    catch { return {text:'pulse stopped: tracker unavailable before reply'}; }
+    if (!selected || !latest.some(issue=>issue.number===selected.number && issue.state==='open' && issue.by===selected.by)) {
+      return {text:'pulse stopped: issue no longer open'};
+    }
+    return validateAnswer(ping,answer);
+  }
+  if (ping.kind!=='test') throw new Error('unknown agent kind');
+  const issue=issues.find(item=>item.number===ping.issue && item.state==='open');
+  // Only the plan owner's open issue is eligible; arbitrary issue instructions grant no rights.
+  const eligible=chooseRelevantIssue(issue?[issue]:[],context.plan);
+  if (!eligible) throw new Error('test issue not eligible');
+  const artifact=await generateTest({ping,context,issue:eligible,generate});
+  if (typeof runRedTest!=='function') throw new Error('isolated runner unavailable');
+  const measured=await runRedTest({files:ping.files,repoFiles:context.repoFiles,testArtifact:artifact});
+  if (typeof measured?.red!=='string' || !measured.red || /[\r\n]/.test(measured.red)) throw new Error('no measured red evidence');
+  return validateAnswer(ping,{...artifact,red:measured.red});
+}

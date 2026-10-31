@@ -1,0 +1,20 @@
+# Trusted dependency-only toolchain. No task payload or private project is in this image.
+# Official Node image index resolved read-only from Docker Hub on 2026-10-31.
+FROM node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c
+WORKDIR /opt/toolchain
+RUN npm init -y \
+ && npm install --ignore-scripts --no-audit --no-fund --save-exact \
+    vitest@5.0.1 typescript@6.0.3 hono@4.13.8 @hono/node-server@1.19.0 \
+    tsx@4.20.0 @types/node@24.1.0 \
+ && npm cache clean --force
+RUN mkdir -p /work/src /work/test /work/runs /report \
+ && ln -s /opt/toolchain/node_modules /work/node_modules \
+ && printf '%s\n' '{"type":"module","private":true}' > /work/package.json \
+ && printf '%s\n' 'export default { root: "/work", cacheDir: "/tmp/vite-cache", esbuild: { jsx: "automatic", jsxImportSource: "hono/jsx" }, test: { environment: "node", fileParallelism: false, maxWorkers: 1, pool: "forks", isolate: true } };' > /opt/toolchain/vitest.config.mjs
+COPY src/trusted-bootstrap.mjs /opt/toolchain/trusted-bootstrap.mjs
+# The trusted controller owns /report. Its bootstrap demotes every execution child
+# to UID/GID 65532 before any application/test module is loaded. Only SETUID and
+# SETGID capabilities are supplied at runtime; the child drops those on setuid.
+USER 0:0
+WORKDIR /work
+ENTRYPOINT ["node", "/opt/toolchain/trusted-bootstrap.mjs"]

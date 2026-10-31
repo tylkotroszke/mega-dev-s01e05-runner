@@ -1,0 +1,42 @@
+name: Signed agent job
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: Non-secret random job identifier
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: signed-agent-jobs
+  cancel-in-progress: false
+
+jobs:
+  agent:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    environment: mega-s01e05
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Build trusted test toolchain (no source or secrets in image)
+        run: docker build --file Dockerfile.test --tag signed-test-toolchain:local .
+      - name: Process one signed job
+        run: node src/runner.mjs
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+          RUNNER_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+          AGENT_ORIGIN: ${{ vars.AGENT_ORIGIN }}
+          LIVE_EXECUTION_ENABLED: ${{ vars.LIVE_EXECUTION_ENABLED }}
+          PULSE_MODEL: ${{ vars.PULSE_MODEL }}
+          TEST_MODEL: ${{ vars.TEST_MODEL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          RUNNER_SHARED_KEY: ${{ secrets.RUNNER_SHARED_KEY }}
