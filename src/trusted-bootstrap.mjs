@@ -1,11 +1,46 @@
 import childProcess from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
-import { lstat } from 'node:fs/promises';
+import { lstat, open } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
 const CHILD_UID = 65532;
 const CHILD_GID = 65532;
 const CLI = '/opt/toolchain/node_modules/vitest/vitest.mjs';
+
+export function controllerArguments(testPath, testTimeout) {
+  if (!/^test\/[A-Za-z0-9][A-Za-z0-9._-]*\.test\.ts$/.test(testPath) || !/^\d{1,5}$/.test(testTimeout) || Number(testTimeout) < 1 || Number(testTimeout) > 10_000) throw new Error('invalid fixed-controller arguments');
+  // The trusted .mjs config needs no bundling. Vite's default bundle loader
+  // writes beside it under /opt/toolchain/node_modules/.vite-temp, which is
+  // intentionally read-only in this image.
+  return [process.execPath, CLI, 'run', testPath, '--config=/opt/toolchain/vitest.config.mjs', '--configLoader=native', '--reporter=json', '--outputFile=/report/result.json', '--maxWorkers=1', '--no-file-parallelism', `--testTimeout=${testTimeout}`, '--silent'];
+}
+
+/** Return only a finite diagnosis code. Never echo source, paths, logs or tokens. */
+export function classifyControllerFailure(log, exitCode) {
+  const text = typeof log === 'string' ? log : '';
+  let code = 'NO_REPORT';
+  if (/EROFS|read-only file system/i.test(text) && /\.vite-temp|vitest\.config/i.test(text)) code = 'CONFIG_READ_ONLY';
+  else if (/EACCES|EPERM|permission denied/i.test(text) && /\/report\b/.test(text)) code = 'REPORT_PERMISSION';
+  else if (/EACCES|EPERM|permission denied/i.test(text)) code = 'PERMISSION_DENIED';
+  else if (/ERR_MODULE_NOT_FOUND|Cannot find module|Cannot find package/i.test(text)) code = 'TOOLCHAIN_MODULE_MISSING';
+  else if (/EAGAIN|ENOMEM|spawn.*failed/i.test(text)) code = 'PROCESS_RESOURCE';
+  else if (/SyntaxError|Transform failed/i.test(text)) code = 'SOURCE_TRANSFORM_FAILED';
+  else if (/trusted test controller failed/.test(text)) code = 'BOOTSTRAP_FAILED';
+  return { sandboxFailure: { code, exitCode: Number.isInteger(exitCode) && exitCode >= 0 && exitCode <= 255 ? exitCode : null } };
+}
+
+async function printSafeFailure(exitCode) {
+  let log = '';
+  let file;
+  try {
+    file = await open('/tmp/vitest-output', 'r');
+    const buffer = Buffer.alloc(64_000);
+    const { bytesRead } = await file.read(buffer, 0, buffer.length, 0);
+    log = buffer.subarray(0, bytesRead).toString('utf8');
+  } catch { /* The safe fallback is NO_REPORT, not the underlying error text. */ }
+  finally { await file?.close(); }
+  process.stdout.write(JSON.stringify(classifyControllerFailure(log, exitCode)));
+}
 
 function childEnvironment(env) {
   return Object.fromEntries(Object.entries(env ?? process.env).filter(([key]) =>
@@ -45,14 +80,17 @@ export async function launchTrustedController({ testPath, testTimeout, importCon
   if (process.platform !== 'linux' || process.getuid?.() !== 0) throw new Error('trusted test controller requires Linux report-owner identity');
   const reportDir = await lstat('/report');
   if (!reportDir.isDirectory() || reportDir.isSymbolicLink() || reportDir.uid !== 0 || (reportDir.mode & 0o077) !== 0) throw new Error('report directory is not protected from test workers');
-  if (!/^test\/[A-Za-z0-9][A-Za-z0-9._-]*\.test\.ts$/.test(testPath) || !/^\d{1,5}$/.test(testTimeout) || Number(testTimeout) < 1 || Number(testTimeout) > 10_000) throw new Error('invalid fixed-controller arguments');
+  const args = controllerArguments(testPath, testTimeout);
   installUnprivilegedChildren();
-  process.argv = [process.execPath, CLI, 'run', testPath, '--config=/opt/toolchain/vitest.config.mjs', '--reporter=json', '--outputFile=/report/result.json', '--maxWorkers=1', '--no-file-parallelism', `--testTimeout=${testTimeout}`, '--silent'];
+  process.argv = args;
   await importController(pathToFileURL(CLI).href);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  launchTrustedController({ testPath: process.argv[2], testTimeout: process.argv[3] }).catch(() => {
+  const action = process.argv[2] === '--diagnose'
+    ? printSafeFailure(/^\d{1,3}$/.test(process.argv[3] ?? '') ? Number(process.argv[3]) : null)
+    : launchTrustedController({ testPath: process.argv[2], testTimeout: process.argv[3] });
+  action.catch(() => {
     // No source, payload, stack or credential reaches public runner output.
     process.stderr.write('trusted test controller failed\n'); process.exitCode = 2;
   });

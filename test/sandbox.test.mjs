@@ -6,7 +6,7 @@ import { mkdtemp, readFile, writeFile, rm, symlink, mkdir } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { prepareSandbox, validateTestArtifact, runRedTest } from '../src/sandbox.mjs';
-import { installUnprivilegedChildren } from '../src/trusted-bootstrap.mjs';
+import { installUnprivilegedChildren, controllerArguments, classifyControllerFailure } from '../src/trusted-bootstrap.mjs';
 
 const artifact = { path: 'test/value.test.ts', test: "import { value } from '../src/value.js';\nimport { expect, it } from 'vitest';\nit('keeps a value', () => expect(value()).toBe(2));\n" };
 const files = { 'src/value.ts': 'export const value = () => 1;\n' };
@@ -139,6 +139,29 @@ test('trusted bootstrap forces fork/spawn/execFile children to nonroot and synch
   assert.equal(synced, 1);
   assert.throws(() => api.exec('arbitrary root shell'), /disabled/);
   assert.throws(() => api.execSync('arbitrary root shell'), /disabled/);
+});
+
+test('trusted static config uses native loader without widening write permissions', () => {
+  const args = controllerArguments('test/value.test.ts', '10000');
+  assert.ok(args.includes('--configLoader=native'));
+  assert.ok(args.includes('--config=/opt/toolchain/vitest.config.mjs'));
+  assert.ok(args.includes('--outputFile=/report/result.json'));
+  assert.throws(() => controllerArguments('test/../src/evil.test.ts', '10000'));
+  assert.throws(() => controllerArguments('test/value.test.ts', '10001'));
+});
+
+test('no-report diagnostics expose finite codes and process status, never raw controller data', async (t) => {
+  const root = await temp(t);
+  const input = "Error: EROFS read-only file system /opt/toolchain/node_modules/.vite-temp/config.mjs; token=PRIVATE_SECRET source=PRIVATE_SOURCE";
+  const diagnostic = classifyControllerFailure(input, 1);
+  assert.deepEqual(diagnostic, { sandboxFailure: { code: 'CONFIG_READ_ONLY', exitCode: 1 } });
+  assert.equal(JSON.stringify(diagnostic).includes('PRIVATE'), false);
+  const fake = dockerMock(() => diagnostic);
+  await assert.rejects(runRedTest({ root, files, testArtifact: artifact, spawnImpl: fake.spawnImpl }), { message: 'sandbox failed before report: CONFIG_READ_ONLY (exit 1)' });
+  const malicious = dockerMock(() => ({ sandboxFailure: { code: 'PRIVATE_SECRET', exitCode: 1, source: 'PRIVATE_SOURCE' } }));
+  await assert.rejects(runRedTest({ root, files, testArtifact: artifact, spawnImpl: malicious.spawnImpl }), { message: 'sandbox failed before report: NO_REPORT (exit 1)' });
+  assert.equal(classifyControllerFailure('EACCES opening /report/result.json', 1).sandboxFailure.code, 'REPORT_PERMISSION');
+  assert.equal(classifyControllerFailure('Error without known category PRIVATE_SECRET', 2).sandboxFailure.code, 'NO_REPORT');
 });
 
 test('direct report-forgery topology is denied: only trusted controller owns the output directory', async (t) => {

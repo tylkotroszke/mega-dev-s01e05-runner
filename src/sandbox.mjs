@@ -12,7 +12,8 @@ const MAX_REPORT_BYTES = 256_000;
 const MAX_OUTPUT_BYTES = 64_000;
 const BAD_SEGMENTS = new Set(['__proto__', 'prototype', 'constructor']);
 // Constant shell program; the model-supplied path is only a validated positional argument.
-const SANDBOX_COMMAND = 'node /opt/toolchain/trusted-bootstrap.mjs "$1" "$2" > /tmp/vitest-output 2>&1; result=$?; if [ -f /report/result.json ]; then cat /report/result.json; fi; exit "$result"';
+const SANDBOX_COMMAND = 'node /opt/toolchain/trusted-bootstrap.mjs "$1" "$2" > /tmp/vitest-output 2>&1; result=$?; if [ -f /report/result.json ]; then cat /report/result.json; else node /opt/toolchain/trusted-bootstrap.mjs --diagnose "$result"; fi; exit "$result"';
+const SAFE_FAILURE_CODES = new Set(['NO_REPORT', 'CONFIG_READ_ONLY', 'REPORT_PERMISSION', 'PERMISSION_DENIED', 'TOOLCHAIN_MODULE_MISSING', 'PROCESS_RESOURCE', 'SOURCE_TRANSFORM_FAILED', 'BOOTSTRAP_FAILED']);
 
 function plainRecord(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -185,9 +186,15 @@ export async function runRedTest({ files, repoFiles = {}, testArtifact, root = t
     // The report lived on a size-limited tmpfs inside the container. Never mount
     // a writable host directory for model-produced code to fill or modify.
     const text = processResult.stdout;
-    if (!text || Buffer.byteLength(text) > MAX_REPORT_BYTES) throw new Error('invalid sandbox report');
+    if (!text || Buffer.byteLength(text) > MAX_REPORT_BYTES) throw new Error(`invalid sandbox report (exit ${Number.isInteger(processResult.exitCode) ? processResult.exitCode : 'unknown'})`);
     let report;
     try { report = JSON.parse(text); } catch { throw new Error('invalid sandbox report JSON'); }
+    if (plainRecord(report?.sandboxFailure)) {
+      const failure = report.sandboxFailure;
+      const code = SAFE_FAILURE_CODES.has(failure.code) ? failure.code : 'NO_REPORT';
+      const exit = Number.isInteger(processResult.exitCode) ? processResult.exitCode : 'unknown';
+      throw new Error(`sandbox failed before report: ${code} (exit ${exit})`);
+    }
     const measurement = measureReport(report, prepared.artifact.path, processResult.exitCode);
     if (keepArtifacts) await writeFile(join(prepared.resultDir, 'validated-report.json'), text, { flag: 'wx', mode: 0o600 });
     const current = [];
