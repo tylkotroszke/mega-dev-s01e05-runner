@@ -16,6 +16,14 @@ checking that agents are disabled. It preserves existing plain-text/D1
 bindings, keeps logs enabled, and verifies the public health and manifest.
 A failed or uncertain upload is never retried automatically.
 
+The manual `check-gemini.yml` workflow accepts only `gemini-check-v1` in the
+model Environment, while live execution remains false. It sends the two
+reviewed synthetic bodies in `requests/` to fixed Gemini models, at most once
+each, and executes the generated test in the existing isolated Docker runner.
+It never receives the deployment token, private course source, or reply URL.
+Public Worker checks are GET only; the public and authenticated agent paths
+are still disabled. A successful check is not a completed live integration.
+
 ## Local verification
 
 Node 24: `npm test` (built-in node:test; no package install required).

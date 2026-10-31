@@ -1,0 +1,7 @@
+export const MODELS=Object.freeze({pulse:'gemini-3.5-flash-lite',test:'gemini-3.8-flash'});
+export const WORKER='https://mega-s01e05.sawczuk-mateusz.workers.dev';
+export const ISSUE=Object.freeze({number:7,title:'Keep jobs with unassigned owner visible',state:'open',by:'sample-maintainer',body:'visibleJobs must retain every supplied job, including owner unassigned. For jobs alpha owned by Ada and beta owned by unassigned, the returned IDs must be alpha and beta, in that order.',comments:[],labels:[]});
+export const FILES=Object.freeze({'src/jobs.ts':"export type Job = { id: string; owner: string };\nexport function visibleJobs(jobs: Job[]): string[] {\n  return jobs.filter(job => job.owner !== 'unassigned').map(job => job.id);\n}\n"});
+export const CONTEXT=Object.freeze({plan:'---\nowner: sample-maintainer\n---\n# Synthetic visibility plan\nInvestigate job visibility regression #7.\n',history:[],testInstructions:'Write exactly one Vitest test using it or test and expect from vitest. Import visibleJobs from ../src/jobs.js. Pass [{id:"alpha",owner:"Ada"},{id:"beta",owner:"unassigned"}] and assert the returned IDs equal ["alpha","beta"]. Do not mock, throw deliberately, edit source or use external services. Use one new test/*.test.ts file.',tests:{},repoFiles:{}});
+export const PULSE=Object.freeze({kind:'pulse',phrase:'synthetic-connection-check'});
+export const TEST=Object.freeze({kind:'test',issue:7,files:FILES});

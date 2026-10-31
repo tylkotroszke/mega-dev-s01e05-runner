@@ -10,6 +10,11 @@
     "bytes": 1296
   },
   {
+    "path": ".github/workflows/check-gemini.yml",
+    "sha256": "8b5660fd0f71cc45d288cf590aa1c87565e71a8d761831a349992c50dae1372d",
+    "bytes": 1203
+  },
+  {
     "path": ".github/workflows/deploy-disabled.yml",
     "sha256": "dcf3e8b559f2eec27e1608d55f81e089605f06fc271fcd83aa380875e8152e64",
     "bytes": 809
@@ -31,13 +36,23 @@
   },
   {
     "path": "README.md",
-    "sha256": "235d6583e76a3d2370cba5baa719b092a868411adb82fa7004863b5ad97e33fb",
-    "bytes": 3440
+    "sha256": "0430e08a704cdf7c7bb8c0989e1c82188d874c52c164e7b17120f4ce836e7c9c",
+    "bytes": 3975
   },
   {
     "path": "package.json",
     "sha256": "5528721b365ce244812d0583bc6e727396cdb005e47cdc1ec83bac7a110a89df",
     "bytes": 138
+  },
+  {
+    "path": "requests/gemini-pulse.json",
+    "sha256": "5eea9d8dbac6ac859372b1486d85a47fe24844e3535b739da0a214947bec6ae7",
+    "bytes": 1311
+  },
+  {
+    "path": "requests/gemini-test.json",
+    "sha256": "30840a599ee72e7e4f02726538d48d68b7058c598bdbf3b711bf6b3c71997664",
+    "bytes": 1849
   },
   {
     "path": "schema.sql",
@@ -48,6 +63,16 @@
     "path": "src/agents.mjs",
     "sha256": "4671f7d1a455db01d8c58b6dd061ed7706c0b771a689e1a195323628a9bad258",
     "bytes": 10868
+  },
+  {
+    "path": "src/check-fixture.mjs",
+    "sha256": "7eabf69f54c427fd75891727ad6d2787b05ff81612c88a18c76a4f43b160f94f",
+    "bytes": 1437
+  },
+  {
+    "path": "src/check-gemini.mjs",
+    "sha256": "21401a90ba6923a82f0551aa1bd91b3f54a90ba5a9957a7679fbd4bbd372d99c",
+    "bytes": 3676
   },
   {
     "path": "src/deploy-disabled.mjs",
@@ -103,6 +128,11 @@
     "path": "test/agents.test.mjs",
     "sha256": "d2710434ea110ad07cd0ae106a533df4523f8a0e4d7c08b6e7059d9029f0a0a9",
     "bytes": 7471
+  },
+  {
+    "path": "test/check-gemini.test.mjs",
+    "sha256": "62d37c84292a098b49602421d95f528c0112b75e43f1d1ddf2e389fbb188889e",
+    "bytes": 3845
   },
   {
     "path": "test/deploy-disabled.test.mjs",

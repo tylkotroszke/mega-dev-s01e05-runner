@@ -1,0 +1,34 @@
+name: Check Gemini with synthetic evidence
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: synthetic-gemini-check
+  cancel-in-progress: false
+jobs:
+  check:
+    if: github.ref == 'refs/tags/gemini-check-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    environment: mega-s01e05
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Local checks without secrets
+        run: npm test
+      - name: Build trusted test toolchain without secrets
+        run: docker build --file Dockerfile.test --tag signed-test-toolchain:local .
+      - name: Two reviewed Gemini requests and isolated generated test
+        run: node src/check-gemini.mjs
+        env:
+          GEMINI_CHECK_APPROVED: 'true'
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          LIVE_EXECUTION_ENABLED: ${{ vars.LIVE_EXECUTION_ENABLED }}
+          AGENT_ORIGIN: ${{ vars.AGENT_ORIGIN }}
+          PULSE_MODEL: ${{ vars.PULSE_MODEL }}
+          TEST_MODEL: ${{ vars.TEST_MODEL }}
