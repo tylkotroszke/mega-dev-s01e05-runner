@@ -8,6 +8,32 @@ Deployment is disabled by default. Both Worker AUTONOMOUS_REPLIES_ENABLED
 and GitHub Environment LIVE_EXECUTION_ENABLED require explicit owner approval.
 Do not use a repository secret instead of the selected Environment.
 
+## One-use connection check
+
+The reviewed `connection-check-v1` tag adds `deploy-connection.yml` and
+`check-connection.yml`. Both agents must stay OFF. The deployment uploads
+exactly four hashed ES modules, retaining the eight variables, D1 binding,
+three secret bindings and enabled invocation/persisted logs. It installs no
+dependencies. The older deploy-disabled workflow below predates secret setup
+and must not be reused for this diagnostic deployment.
+
+After the separate owner approval, one manual start phase authenticates to
+`/internal/connection-probe` with the existing shared Environment secret.
+The Worker dispatches one receive phase using its existing GitHub Actions
+secret. The receiver leases and completes only the synthetic diagnostic job.
+It receives no context and has no model key, Docker step or course callback.
+The fixed public identifier is `92d4685c-7e36-4be4-9cd7-a5915146537a`.
+Admission is atomic and usable once across all days, including after failure.
+The probe consumes one existing daily job slot, with zero model calls.
+Do not delete or reset its row to obtain another attempt.
+
+Only read-only status polling repeats. Each dispatch, lease and completion
+POST is sent once. Failure or an uncertain outcome needs owner review.
+Successful receipt requires `probe_completed`, the matching receiver run ID
+and successful GitHub run results. It does not complete the course challenge.
+
+### Historical deployment workflow
+
 The separate manual `deploy-disabled.yml` workflow accepts only the
 `deploy-disabled-v1` tag and uses Environment `mega-s01e05-deploy`.
 Its `CLOUDFLARE_DEPLOY_TOKEN` should have short-lived Editor access to this

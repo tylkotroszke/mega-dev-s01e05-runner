@@ -1,10 +1,39 @@
 import {Inbox} from './store.mjs';
+import {handleConnectionProbe,PROBE_PATH} from './connection-probe.mjs';
 import {MAX_PING_BYTES,MAX_REPLY_BYTES,boundedText,equalSecret,hash,validatePing,validateAnswer,verifyWebhook} from './protocol.mjs';
 
 const json = (value,status=200) => Response.json(value,{status,headers:{'cache-control':'no-store'}});
 const jobPath = /^\/internal\/jobs\/([a-f0-9-]{36})(\/(?:result|failed))?$/;
 
-export function createWorker({fetchImpl=fetch,now=Date.now,uuid=()=>crypto.randomUUID()}={}) {
+export function createWorker({fetchImpl=fetch,now=Date.now,uuid=()=>crypto.randomUUID(),log=entry=>console.log(JSON.stringify(entry))}={}) {
+  function diagnostic(id,stage,started,status=null,error=null) {
+    // Never log exception messages/stacks, headers, response bodies or ping data.
+    try {
+      const allowedNames=['AbortError','TimeoutError','TypeError','Error'];
+      const message=typeof error?.message==='string'?error.message:'';
+      const errorCode=!error?null:error.name==='TimeoutError'?'timeout':error.name==='AbortError'?'aborted':
+        message.includes('Illegal invocation')?'invalid_this':
+        /ByteString|invalid header|header value/i.test(message)?'invalid_header':
+        /I\/O.*(?:global scope|different request)/i.test(message)?'io_context':'unclassified';
+      log({event:'runner_dispatch',jobId:/^[a-f0-9-]{36}$/.test(id)?id:null,stage,
+        httpStatus:Number.isInteger(status)&&status>=100&&status<=599?status:null,
+        elapsedMs:Math.max(0,Math.min(60000,now()-started)),
+        errorType:error?(allowedNames.includes(error.name)?error.name:'OtherError'):null,errorCode});
+    } catch { /* diagnostic output must not alter dispatch or trigger a retry */ }
+  }
+  async function send(id,env,workflow,ref,inputs) {
+    const started=now();
+    try {
+      const response=await fetchImpl(`https://api.github.com/repos/${env.RUNNER_OWNER}/${env.RUNNER_REPOSITORY}/actions/workflows/${workflow}/dispatches`,{
+        method:'POST',redirect:'error',headers:{authorization:`Bearer ${env.GITHUB_ACTIONS_TOKEN}`,accept:'application/vnd.github+json','content-type':'application/json','x-github-api-version':'2026-03-10','user-agent':'signed-agent-runtime'},
+        body:JSON.stringify({ref,inputs}),signal:AbortSignal.timeout(12000)});
+      diagnostic(id,'github_response',started,response.status);
+      return {accepted:[200,204].includes(response.status),status:response.status};
+    } catch(error) {
+      diagnostic(id,'transport_failed',started,null,error);
+      return {accepted:false,status:null};
+    }
+  }
   return {
     async fetch(request,env) {
       const url=new URL(request.url);
@@ -13,6 +42,7 @@ export function createWorker({fetchImpl=fetch,now=Date.now,uuid=()=>crypto.rando
         return json({owner:env.OWNER_CODE,agents:{pulse:{wakes:'pulse',may:['answer']},'test-writer':{wakes:'test',may:['test']}}});
       }
       if (url.pathname === '/health' && request.method === 'GET') return json({ok:true,enabled:env.AUTONOMOUS_REPLIES_ENABLED==='true'});
+      if(url.pathname===PROBE_PATH||url.pathname.startsWith(PROBE_PATH+'/'))return handleConnectionProbe(request,env,{now,send});
       if (env.AUTONOMOUS_REPLIES_ENABLED !== 'true') return json({error:'awaiting owner authorization'},503);
       if (!env.INBOX || !env.COURSE_ORIGIN) return json({error:'not configured'},503);
       if (typeof env.RUNNER_SHARED_KEY!=='string' || env.RUNNER_SHARED_KEY.length<32 ||
@@ -77,18 +107,24 @@ export function createWorker({fetchImpl=fetch,now=Date.now,uuid=()=>crypto.rando
       if (![owner,repo,workflow,ref].every(x=>typeof x==='string' && /^[A-Za-z0-9_.-]+$/.test(x))) {
         await inbox.markDispatch(reserved.id,'dispatch_failed'); return json({error:'invalid runner configuration'},503);
       }
-      try {
-        const dispatched=await fetchImpl(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflow}/dispatches`,{
-          method:'POST',redirect:'error',headers:{'authorization':`Bearer ${env.GITHUB_ACTIONS_TOKEN}`,'accept':'application/vnd.github+json','content-type':'application/json','x-github-api-version':'2026-03-10','user-agent':'signed-agent-runtime'},
-          // Public inputs contain only a random ID, never a secret or private course material.
-          body:JSON.stringify({ref,inputs:{job_id:reserved.id}}),signal:AbortSignal.timeout(12000)});
-        if (![200,204].includes(dispatched.status)) { await inbox.markDispatch(reserved.id,'dispatch_failed'); return json({error:'dispatch rejected'},502); }
-        await inbox.markDispatch(reserved.id,'dispatched');
-        return json({accepted:true},202);
-      } catch {
-        await inbox.markDispatch(reserved.id,'dispatch_uncertain');
+      const started=now();
+      const saveDispatch=async(state,status=null)=>{
+        try { await inbox.markDispatch(reserved.id,state); }
+        catch(error) { diagnostic(reserved.id,'state_write_failed',started,status,error); }
+      };
+      const outcome=await send(reserved.id,env,workflow,ref,{job_id:reserved.id});
+      if(outcome.status===null){
+        await saveDispatch('dispatch_uncertain');
         return json({error:'dispatch outcome uncertain; owner review needed'},502);
       }
+      if (!outcome.accepted) {
+        await saveDispatch('dispatch_failed',outcome.status);
+        return json({error:'dispatch rejected'},502);
+      }
+      // GitHub has already accepted the job. A D1 write failure must not relabel
+      // it as an uncertain network send and deny its one-use lease.
+      await saveDispatch('dispatched',outcome.status);
+      return json({accepted:true},202);
     }
   };
 }

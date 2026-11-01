@@ -1,0 +1,30 @@
+name: Deploy connection diagnostics with agents OFF
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-disabled-mega-s01e05
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/tags/connection-check-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    environment: mega-s01e05-deploy
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Upload exact script with agents disabled and verify
+        run: node src/deploy-connection.mjs
+        env:
+          DEPLOY_CONNECTION_APPROVED: 'true'
+          CLOUDFLARE_DEPLOY_TOKEN: ${{ secrets.CLOUDFLARE_DEPLOY_TOKEN }}

@@ -24,9 +24,9 @@ function db() {
 function setup(fetchImpl) {
  const INBOX=db();
  const env={INBOX,COURSE_ORIGIN:ORIGIN,PING_KEY:KEY,RUNNER_SHARED_KEY:SHARED,OWNER_CODE:'public-owner-placeholder',AUTONOMOUS_REPLIES_ENABLED:'true',MAX_JOBS_PER_DAY:'6',RUNNER_OWNER:'generic-owner',RUNNER_REPOSITORY:'generic-runner',RUNNER_WORKFLOW:'agents.yml',RUNNER_REF:'approved-v1',GITHUB_ACTIONS_TOKEN:'not-a-real-token'};
- const calls=[];
- const worker=createWorker({now:()=>NOW,fetchImpl:async(url,options)=>{calls.push({url,options});return fetchImpl?fetchImpl(url,options):new Response(null,{status:204});}});
- return {worker,env,calls};
+ const calls=[],logs=[];
+ const worker=createWorker({now:()=>NOW,log:entry=>logs.push(entry),fetchImpl:async(url,options)=>{calls.push({url,options});return fetchImpl?fetchImpl(url,options):new Response(null,{status:204});}});
+ return {worker,env,calls,logs};
 }
 function signed(value=pulse,id='message-1',time=NOW/1000) {
  const raw=JSON.stringify(value);
@@ -102,4 +102,72 @@ test('strict origins, tracker mutations, redirect tricks and traversal rejected'
  assert.throws(()=>validatePing({kind:'test',issue:1,reply:pulse.reply,files:{'src/../escape.ts':'bad'}},ORIGIN));
  assert.throws(()=>validateAnswer(pulse,{text:'unquoted phrase'}));
  assert.throws(()=>validateAnswer(pulse,{text:'pulse stopped: error\nmore'}));
+});
+
+test('GitHub HTTP rejection is distinct from a thrown transport error and never retried',async()=>{
+ for(const status of [401,403,404,422]) {
+  const {worker,env,calls,logs}=setup(()=>new Response('private-upstream-body',{status}));
+  assert.equal((await worker.fetch(signed(),env)).status,502);
+  assert.equal(env.INBOX.sql.prepare('SELECT state FROM jobs').get().state,'dispatch_failed');
+  assert.deepEqual(logs.map(x=>[x.stage,x.httpStatus,x.errorType]),[['github_response',status,null]]);
+  assert.equal((await worker.fetch(signed(),env)).status,202);
+  assert.equal(calls.length,1);
+  assert.ok(!JSON.stringify(logs).includes('private-upstream-body'));
+ }
+});
+
+test('timeout and runtime exceptions retain only a bounded type, with no automatic resend',async()=>{
+ for(const name of ['TimeoutError','AbortError','TypeError','Error','arbitrary-secret-name']) {
+  const error=new Error('private-exception-message '+SHARED);error.name=name;
+  const {worker,env,calls,logs}=setup(()=>{throw error;});
+  assert.equal((await worker.fetch(signed(),env)).status,502);
+  assert.equal(env.INBOX.sql.prepare('SELECT state FROM jobs').get().state,'dispatch_uncertain');
+  assert.equal(logs[0].stage,'transport_failed');assert.equal(logs[0].httpStatus,null);
+  assert.equal(logs[0].errorType,name==='arbitrary-secret-name'?'OtherError':name);
+  assert.equal((await worker.fetch(signed(),env)).status,202);assert.equal(calls.length,1);
+  for(const secret of [SHARED,KEY,'private-exception-message','arbitrary-secret-name']) assert.ok(!JSON.stringify(logs).includes(secret));
+ }
+});
+
+test('a failed D1 state write after GitHub acceptance does not poison a queued runner lease',async()=>{
+ const {worker,env,calls,logs}=setup();
+ const originalPrepare=env.INBOX.prepare.bind(env.INBOX);
+ env.INBOX.prepare=query=>{
+  const statement=originalPrepare(query);
+  if(!query.startsWith('UPDATE jobs SET state=?')) return statement;
+  return {bind(...args){
+   const bound=statement.bind(...args);
+   return {...bound,async run(){if(args[0]==='dispatched')throw Error('private-database-detail');return bound.run();}};
+  }};
+ };
+ assert.equal((await worker.fetch(signed(),env)).status,202);
+ assert.equal(env.INBOX.sql.prepare('SELECT state FROM jobs').get().state,'dispatching');
+ assert.deepEqual(logs.map(x=>[x.stage,x.httpStatus]),[['github_response',204],['state_write_failed',204]]);
+ assert.ok(!JSON.stringify(logs).includes('private-database-detail'));
+ const id=JSON.parse(calls[0].options.body).inputs.job_id;
+ assert.equal((await worker.fetch(internal(`/internal/jobs/${id}`),env)).status,200);
+ assert.equal(calls.length,1);
+});
+
+test('diagnostics expose only the approved fields and never transport or course secrets',async()=>{
+ const {worker,env,logs}=setup();
+ await worker.fetch(signed(),env);
+ assert.deepEqual(Object.keys(logs[0]).sort(),['elapsedMs','errorType','errorCode','event','httpStatus','jobId','stage'].sort());
+ for(const secret of [SHARED,KEY,env.GITHUB_ACTIONS_TOKEN,pulse.reply,phrase,ORIGIN]) assert.ok(!JSON.stringify(logs).includes(secret));
+});
+
+test('a failing logging sink cannot turn an accepted dispatch into another send',async()=>{
+ const {env}=setup();let sends=0;
+ const worker=createWorker({now:()=>NOW,log(){throw Error('sink failed');},fetchImpl:async()=>{sends++;return new Response(null,{status:204});}});
+ assert.equal((await worker.fetch(signed(),env)).status,202);
+ assert.equal((await worker.fetch(signed(),env)).status,202);
+ assert.equal(sends,1);
+});
+
+test('known runtime error messages map to fixed diagnostic codes without raw content',async()=>{
+ for(const [message,code] of [['Illegal invocation: '+SHARED,'invalid_this'],['Cannot convert secret to ByteString '+KEY,'invalid_header'],['Cannot perform I/O on behalf of a different request '+SHARED,'io_context']]){
+  const {worker,env,logs}=setup(()=>{throw new TypeError(message);});
+  assert.equal((await worker.fetch(signed(),env)).status,502);assert.equal(logs[0].errorCode,code);
+  assert.ok(!JSON.stringify(logs).includes(SHARED));assert.ok(!JSON.stringify(logs).includes(KEY));
+ }
 });

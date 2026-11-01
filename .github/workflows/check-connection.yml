@@ -1,0 +1,39 @@
+name: One-use connection check without models
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [start, receive]
+        required: true
+      job_id:
+        type: string
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: connection-check-${{ inputs.mode }}
+  cancel-in-progress: false
+jobs:
+  check:
+    if: github.ref == 'refs/tags/connection-check-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    environment: mega-s01e05
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Check one approved connection without model access
+        run: node src/check-connection.mjs
+        env:
+          CONNECTION_CHECK_APPROVED: 'true'
+          PROBE_MODE: ${{ inputs.mode }}
+          PROBE_JOB_ID: ${{ inputs.job_id }}
+          PROBE_RUNNER_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+          LIVE_EXECUTION_ENABLED: ${{ vars.LIVE_EXECUTION_ENABLED }}
+          AGENT_ORIGIN: ${{ vars.AGENT_ORIGIN }}
+          RUNNER_SHARED_KEY: ${{ secrets.RUNNER_SHARED_KEY }}
