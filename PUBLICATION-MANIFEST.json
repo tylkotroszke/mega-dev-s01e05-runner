@@ -1,6 +1,6 @@
 {
-  "parent": "defa13cbb886c82ac1696b698b90af5e1cfb11ec",
-  "newTag": "connection-check-v2",
+  "parent": "b9cf7b6a3e400f21c2521322ec864c1481df5195",
+  "newTag": "no-cap-v1",
   "files": [
     {
       "path": ".dockerignore",
@@ -9,8 +9,8 @@
     },
     {
       "path": ".github/workflows/agents.yml",
-      "bytes": 1296,
-      "sha256": "dd3d17f71af50a80b2ed7b041e3198467160720da1d82f598276d1c4be48571b"
+      "bytes": 1227,
+      "sha256": "5a9d860ba67ecef119bdf85b4fc66713cebfef0f5bdeed563ab73ab847516bb2"
     },
     {
       "path": ".github/workflows/check-connection.yml",
@@ -31,6 +31,11 @@
       "path": ".github/workflows/deploy-disabled.yml",
       "bytes": 809,
       "sha256": "dcf3e8b559f2eec27e1608d55f81e089605f06fc271fcd83aa380875e8152e64"
+    },
+    {
+      "path": ".github/workflows/deploy-no-cap.yml",
+      "bytes": 817,
+      "sha256": "f771fdbd75c78ad3d54effea484f99f0d81ae61cae1959dea1d4ef99bfddd5a6"
     },
     {
       "path": ".github/workflows/selftest.yml",
@@ -54,8 +59,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 5735,
-      "sha256": "a8ee2fdf04cefc08f760198b427e2bcd38582635b3f0a02f15f2a13c70acba94"
+      "bytes": 6725,
+      "sha256": "8a8793d7ee14c98ed2fba87c1f51c94ec7efaeaf3a296e949fdaa364218520ba"
     },
     {
       "path": "requests/connection-deploy.json",
@@ -86,6 +91,26 @@
       "path": "requests/gemini-test.json",
       "bytes": 1849,
       "sha256": "30840a599ee72e7e4f02726538d48d68b7058c598bdbf3b711bf6b3c71997664"
+    },
+    {
+      "path": "requests/no-cap-deploy.json",
+      "bytes": 32,
+      "sha256": "3711f9ef5f70d7fa7e12fe3c004ebf64b77d5bce92f8343e78ba887481571e20"
+    },
+    {
+      "path": "requests/no-cap-policy.json",
+      "bytes": 34,
+      "sha256": "ffbeafd83be6c742e08d6952066ac6ab0fceffb19a5aa499365d9bbab445d28c"
+    },
+    {
+      "path": "requests/worker-delete-cap-ui.json",
+      "bytes": 141,
+      "sha256": "f4ce695d38c601daa192ede30395c1c284ac42b01c8782bc3f55d1187bb5b66d"
+    },
+    {
+      "path": "requests/worker-no-cap-ref-ui.json",
+      "bytes": 125,
+      "sha256": "264cec61b6711f64b21588a8b84027627176fd4cb880015cf75006ae9812783c"
     },
     {
       "path": "requests/worker-probe-result.json",
@@ -124,18 +149,23 @@
     },
     {
       "path": "src/connection-probe.mjs",
-      "bytes": 3954,
-      "sha256": "b9a0e6dc9ac07d3b674e877efda72ffb9c3a61c5ba20a28d7bb5cd31bc08115e"
+      "bytes": 3809,
+      "sha256": "071e203d1ed66ce99fef9821ca2628c27dfc9cc3759770c44b0fae094fb960fa"
     },
     {
       "path": "src/deploy-connection.mjs",
       "bytes": 6620,
-      "sha256": "71926afc54c3c8f77bd3e324d2b85e3e9334eb4555f9e80b03e30b3697f57be1"
+      "sha256": "1826dc9cca9dcf0e41e5191f4f7df83fd0324d874656a4d7002ac3d0fb037fb1"
     },
     {
       "path": "src/deploy-disabled.mjs",
       "bytes": 5586,
       "sha256": "1c5d6b0128f2efd216be803ddd1729edf613a08694b86e431fbd18ebf51f164a"
+    },
+    {
+      "path": "src/deploy-no-cap.mjs",
+      "bytes": 6753,
+      "sha256": "048795638d337a307a81f810763cccb2a4b0911ea496d2bbc34e333d08744f26"
     },
     {
       "path": "src/gemini.mjs",
@@ -164,8 +194,8 @@
     },
     {
       "path": "src/store.mjs",
-      "bytes": 1999,
-      "sha256": "a6e826f0782ee1dce0c88b3a4f5dd7471745e34456c9baa7a392b2ae60c49273"
+      "bytes": 1903,
+      "sha256": "b83887ed23bca565933ad97ee49446163f2df6612dcd925d698ad161f44df3ce"
     },
     {
       "path": "src/trusted-bootstrap.mjs",
@@ -179,8 +209,8 @@
     },
     {
       "path": "src/worker.mjs",
-      "bytes": 9067,
-      "sha256": "df3336fa1bdd48b065568d7efad3e5e48028dd7fbc799ff65b8637a932d69157"
+      "bytes": 8810,
+      "sha256": "d41f4d917edd9a818e96fff4756af8f78951a87777e3b3bf4a8cf5e6fa32f1b8"
     },
     {
       "path": "test/agents.test.mjs",
@@ -194,8 +224,8 @@
     },
     {
       "path": "test/connection-probe.test.mjs",
-      "bytes": 6780,
-      "sha256": "17c7a935dac95e6bf6bdb220a47948ab9df558147abd226c9cbb59a111b0c28c"
+      "bytes": 6913,
+      "sha256": "5c238534acc6664d7884fcc41d36cf9d8a8a92f30b71d2cee53eaffc78724555"
     },
     {
       "path": "test/deploy-connection.test.mjs",
@@ -206,6 +236,11 @@
       "path": "test/deploy-disabled.test.mjs",
       "bytes": 4267,
       "sha256": "68cda2a6d1272414297fb1c92890daa53503086e0a74cea7edfa2b6ddd0e7ed3"
+    },
+    {
+      "path": "test/deploy-no-cap.test.mjs",
+      "bytes": 4622,
+      "sha256": "a5de5bb7fcfae853807317102544e7a5e07e0e3cc5cd3e0bbad76add6b5497b2"
     },
     {
       "path": "test/docker-smoke.mjs",
@@ -234,13 +269,13 @@
     },
     {
       "path": "test/worker.test.mjs",
-      "bytes": 13635,
-      "sha256": "8c5362b45df0039d5401d5b7a5a5e25584f2089ca996e9d8610e8f1c0135563c"
+      "bytes": 14226,
+      "sha256": "938a2db8028289b7991da06ef3c1a67782ee763129f40bec30c1a7770b9923cb"
     },
     {
       "path": "wrangler.json",
-      "bytes": 748,
-      "sha256": "9e687cb7c2e5fa185c14d8023c78a9084902eda4e1c7bdff4225723f42d646d5"
+      "bytes": 719,
+      "sha256": "f759f1e4306e39738d53a41605214527431511d0a6cc62d8d837f650eed29aa1"
     }
   ]
 }

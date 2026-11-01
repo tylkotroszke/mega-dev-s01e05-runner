@@ -5,7 +5,7 @@ import {pathToFileURL} from 'node:url';
 const API='https://api.cloudflare.com/client/v4/accounts/32781e40b48d6ec2b90c3ed6c547d731/workers/scripts/mega-s01e05';
 const PUBLIC='https://mega-s01e05.sawczuk-mateusz.workers.dev';
 const REF='refs/tags/connection-check-v2';
-export const HASHES=Object.freeze({"worker.mjs":"df3336fa1bdd48b065568d7efad3e5e48028dd7fbc799ff65b8637a932d69157","store.mjs":"a6e826f0782ee1dce0c88b3a4f5dd7471745e34456c9baa7a392b2ae60c49273","protocol.mjs":"89f81e3c79cf62085132c1d5b917f6559f38038467132b4ae32dceb85436ad9b","connection-probe.mjs":"b9a0e6dc9ac07d3b674e877efda72ffb9c3a61c5ba20a28d7bb5cd31bc08115e"});
+export const HASHES=Object.freeze({"worker.mjs":"d41f4d917edd9a818e96fff4756af8f78951a87777e3b3bf4a8cf5e6fa32f1b8","store.mjs":"b83887ed23bca565933ad97ee49446163f2df6612dcd925d698ad161f44df3ce","protocol.mjs":"89f81e3c79cf62085132c1d5b917f6559f38038467132b4ae32dceb85436ad9b","connection-probe.mjs":"071e203d1ed66ce99fef9821ca2628c27dfc9cc3759770c44b0fae094fb960fa"});
 const D1='e04e51bc-7677-4672-822c-e1d950b77735';
 const EXPECTED={AUTONOMOUS_REPLIES_ENABLED:'false',MAX_JOBS_PER_DAY:'6',COURSE_ORIGIN:'https://hq.mega.dev',RUNNER_OWNER:'tylkotroszke',RUNNER_REPOSITORY:'mega-dev-s01e05-runner',RUNNER_WORKFLOW:'agents.yml',RUNNER_REF:'approved-v1'};
 export const METADATA=Object.freeze({main_module:'worker.mjs',compatibility_date:'2026-10-31',keep_bindings:['plain_text','d1','secret_text'],observability:{enabled:true,logs:{enabled:true,invocation_logs:true,persist:true},traces:{enabled:false}}});

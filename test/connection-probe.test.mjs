@@ -49,9 +49,10 @@ test('probe failure is recorded and the one-use identifier cannot trigger a rese
   assert.ok(!JSON.stringify(f.logs).includes('private token detail'));
  }
 });
-test('probe honors the existing total six-jobs daily budget',async()=>{
+test('historical job count does not block a probe; its one-use identity still applies',async()=>{
  const f=fixture();for(let i=0;i<6;i++)f.env.INBOX.sql.prepare('INSERT INTO jobs(id,webhook_id,body_hash,state,created) VALUES (?,?,?,?,?)').run('existing-'+i,'message-'+i,'hash','answered',NOW);
- assert.equal((await f.worker.fetch(f.request('',body),f.env)).status,409);assert.equal(f.calls.length,0);
+ assert.equal((await f.worker.fetch(f.request('',body),f.env)).status,202);assert.equal(f.calls.length,1);
+ assert.equal((await f.worker.fetch(f.request('',body),f.env)).status,409);assert.equal(f.calls.length,1);
 });
 test('early receiver lease is not overwritten by the dispatch acknowledgement',async()=>{
  let f;f=fixture(async()=>{assert.equal((await f.worker.fetch(f.request('/lease',body,'200-1'),f.env)).status,200);return new Response(null,{status:204});});

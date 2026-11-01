@@ -96,12 +96,9 @@ export function createWorker({fetchImpl=fetch,now=Date.now,uuid=()=>crypto.rando
       try { raw=await boundedText(request,MAX_PING_BYTES); } catch { return json({error:'invalid body'},413); }
       if (!await verifyWebhook(request.headers,raw,env.PING_KEY,now())) return json({error:'invalid signature'},401);
       try { ping=validatePing(JSON.parse(raw),env.COURSE_ORIGIN); } catch { return json({error:'invalid ping'},400); }
-      const maxJobs=Number(env.MAX_JOBS_PER_DAY ?? 6);
-      if (!Number.isInteger(maxJobs) || maxJobs<1 || maxJobs>10) return json({error:'invalid budget'},503);
       // Context must be seeded privately before registering with the course.
       try { await inbox.context(); } catch { return json({error:'context unavailable'},503); }
-      const reserved=await inbox.reserve({id:uuid(),webhookId:request.headers.get('webhook-id'),bodyHash:await hash(raw),payload:ping,now:now(),maxJobs});
-      if (reserved.budgetExceeded) return json({error:'daily budget exhausted'},429);
+      const reserved=await inbox.reserve({id:uuid(),webhookId:request.headers.get('webhook-id'),bodyHash:await hash(raw),payload:ping,now:now()});
       if (reserved.conflict) return json({error:'webhook ID reused with different body'},409);
       if (!reserved.created) return json({accepted:true,duplicate:true},202);
       const owner=env.RUNNER_OWNER, repo=env.RUNNER_REPOSITORY, workflow=env.RUNNER_WORKFLOW,ref=env.RUNNER_REF;

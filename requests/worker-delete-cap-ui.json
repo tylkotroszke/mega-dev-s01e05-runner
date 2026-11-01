@@ -1,0 +1,1 @@
+{"worker":"mega-s01e05","environment":"Production","action":"delete","key":"MAX_JOBS_PER_DAY","expectedType":"Variable","expectedValue":"6"}

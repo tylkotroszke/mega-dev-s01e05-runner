@@ -11,10 +11,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: signed-agent-jobs
-  cancel-in-progress: false
-
 jobs:
   agent:
     runs-on: ubuntu-24.04

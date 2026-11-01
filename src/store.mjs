@@ -1,14 +1,13 @@
 export class Inbox {
   constructor(db) { this.db=db; }
-  async reserve({id,webhookId,bodyHash,payload,now,maxJobs}) {
-    // One SQLite statement makes both daily admission and deduplication atomic.
+  async reserve({id,webhookId,bodyHash,payload,now}) {
+    // Unique webhook IDs provide atomic deduplication without a daily quota.
     const result = await this.db.prepare(`INSERT OR IGNORE INTO jobs(id,webhook_id,body_hash,payload,state,created)
-      SELECT ?,?,?,?,'dispatching',? WHERE
-      (SELECT COUNT(*) FROM jobs WHERE created >= ?) < ? RETURNING id`)
-      .bind(id,webhookId,bodyHash,JSON.stringify(payload),now,Math.floor(now/86400000)*86400000,maxJobs).first();
+      VALUES (?,?,?,?,'dispatching',?) RETURNING id`)
+      .bind(id,webhookId,bodyHash,JSON.stringify(payload),now).first();
     if (result) return {created:true,id};
     const existing = await this.db.prepare('SELECT id,body_hash,state FROM jobs WHERE webhook_id = ?').bind(webhookId).first();
-    if (!existing) return {budgetExceeded:true};
+    if (!existing) throw new Error('job reservation unavailable');
     return {created:false,id:existing.id,conflict:existing.body_hash !== bodyHash,state:existing.state};
   }
   async markDispatch(id,state) {

@@ -23,7 +23,7 @@ function db() {
 }
 function setup(fetchImpl) {
  const INBOX=db();
- const env={INBOX,COURSE_ORIGIN:ORIGIN,PING_KEY:KEY,RUNNER_SHARED_KEY:SHARED,OWNER_CODE:'public-owner-placeholder',AUTONOMOUS_REPLIES_ENABLED:'true',MAX_JOBS_PER_DAY:'6',RUNNER_OWNER:'generic-owner',RUNNER_REPOSITORY:'generic-runner',RUNNER_WORKFLOW:'agents.yml',RUNNER_REF:'approved-v1',GITHUB_ACTIONS_TOKEN:'not-a-real-token'};
+ const env={INBOX,COURSE_ORIGIN:ORIGIN,PING_KEY:KEY,RUNNER_SHARED_KEY:SHARED,OWNER_CODE:'public-owner-placeholder',AUTONOMOUS_REPLIES_ENABLED:'true',RUNNER_OWNER:'generic-owner',RUNNER_REPOSITORY:'generic-runner',RUNNER_WORKFLOW:'agents.yml',RUNNER_REF:'approved-v1',GITHUB_ACTIONS_TOKEN:'not-a-real-token'};
  const calls=[],logs=[];
  const worker=createWorker({now:()=>NOW,log:entry=>logs.push(entry),fetchImpl:async(url,options)=>{calls.push({url,options});return fetchImpl?fetchImpl(url,options):new Response(null,{status:204});}});
  return {worker,env,calls,logs};
@@ -62,10 +62,19 @@ test('concurrent duplicates reserve once and public dispatch inputs contain only
  assert.ok(!calls[0].options.body.includes(pulse.reply));
  assert.equal((await worker.fetch(signed({...pulse,phrase:'changed'}),env)).status,409);
 });
-test('daily admission uses atomic persistent SQLite count',async()=>{
+test('more than six unique signed pings are accepted without a daily task quota',async()=>{
+ const {worker,env,calls}=setup();
+ const results=await Promise.all(Array.from({length:12},(_,i)=>worker.fetch(signed(pulse,'unique-'+i),env)));
+ assert.ok(results.every(r=>r.status===202));assert.equal(calls.length,12);
+ assert.equal(env.INBOX.sql.prepare('SELECT COUNT(*) AS n FROM jobs').get().n,12);
+ assert.equal((await worker.fetch(signed(pulse,'unique-0'),env)).status,202);
+ assert.equal(calls.length,12);
+});
+
+test('historical diagnostic rows and the obsolete setting cannot impose a task quota',async()=>{
  const {worker,env,calls}=setup();env.MAX_JOBS_PER_DAY='1';
- const results=await Promise.all([worker.fetch(signed(pulse,'a'),env),worker.fetch(signed(pulse,'b'),env)]);
- assert.deepEqual(results.map(r=>r.status).sort(),[202,429]);assert.equal(calls.length,1);
+ for(let i=0;i<20;i++)env.INBOX.sql.prepare('INSERT INTO jobs(id,webhook_id,body_hash,state,created) VALUES (?,?,?,?,?)').run('old-'+i,'old-webhook-'+i,'hash','probe_uncertain',NOW);
+ assert.equal((await worker.fetch(signed(),env)).status,202);assert.equal(calls.length,1);
 });
 test('job lease is authenticated and one-use; reply token never enters runner',async()=>{
  const {worker,env,calls}=setup();await worker.fetch(signed(),env);const id=JSON.parse(calls[0].options.body).inputs.job_id;

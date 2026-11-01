@@ -1,5 +1,22 @@
 # Signed agent runtime
 
+## Daily task quota removed
+
+Production admission has no harness-defined daily task count. The Worker and
+SQLite reservation code do not read MAX_JOBS_PER_DAY; historical and failed
+jobs cannot block later unique signed pings. Signature checks, unique webhook
+deduplication, one-use leases and the original course reply destination remain.
+Provider free-tier quotas still apply. There is no paid model fallback.
+
+The agents workflow does not share a custom concurrency group: distinct jobs
+use GitHub's normal scheduling instead of replacing a single pending run.
+
+The reviewed no-cap-v1 runtime tag and deployment keep existing agents ON, preserve all
+secrets, D1 and logs, then allows the owner-approved removal of the obsolete
+MAX_JOBS_PER_DAY variable. It does not run a model, dispatch another connection
+probe or submit a course claim. Older diagnostic deployment sections below
+describe historical tags and are not the current deployment procedure.
+
 Generic signed-webhook transport and bounded model agents. This directory
 contains no application source, fixtures, private plans or credentials.
 Those arrive through a private authenticated job channel at runtime.
@@ -29,7 +46,7 @@ secret. The receiver leases and completes only the synthetic diagnostic job.
 It receives no context and has no model key, Docker step or course callback.
 The fixed public identifier is `6d795aa2-9807-4df1-9316-fc872fd439cd`.
 Admission is atomic and usable once across all days, including after failure.
-The probe consumes one existing daily job slot, with zero model calls.
+The probe creates one diagnostic row, with zero model calls. Job rows do not impose a daily task quota.
 Do not delete or reset its row to obtain another attempt.
 
 Only read-only status polling repeats. Each dispatch, lease and completion

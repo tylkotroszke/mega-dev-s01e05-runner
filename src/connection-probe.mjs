@@ -24,13 +24,12 @@ export async function handleConnectionProbe(request,env,{now,send}) {
  if(!body||body.probeId!==PROBE_ID||Object.keys(body).sort().join(',')!==(result?'ok,probeId':'probeId')||(result&&body.ok!==true))return json({error:'invalid probe body'},400);
  if(path===PROBE_PATH){
   if(typeof env.GITHUB_ACTIONS_TOKEN!=='string'||env.GITHUB_ACTIONS_TOKEN.length<8||/[\r\n]/.test(env.GITHUB_ACTIONS_TOKEN))return json({error:'dispatch secret unavailable'},503);
-  // Exactly one admission for this public identifier, across all days. It also
-  // consumes one of the existing six daily job slots, although it uses no model.
+  // Exactly one admission for this public identifier, across all days.
+  // Existing job counts do not impose a daily task quota.
   const created=await env.INBOX.prepare(`INSERT OR IGNORE INTO jobs(id,webhook_id,body_hash,payload,state,created)
-   SELECT ?,?,?,NULL,'probe_dispatching',? WHERE
-   (SELECT COUNT(*) FROM jobs WHERE created>=?)<6 RETURNING id`)
-   .bind(PROBE_ID,'connection-probe:'+PROBE_ID,await hash(JSON.stringify(body)),now(),Math.floor(now()/86400000)*86400000).first();
-  if(!created)return json({error:'probe already used or daily budget reached'},409);
+   VALUES (?,?,?,NULL,'probe_dispatching',?) RETURNING id`)
+   .bind(PROBE_ID,'connection-probe:'+PROBE_ID,await hash(JSON.stringify(body)),now()).first();
+  if(!created)return json({error:'probe already used'},409);
   const outcome=await send(PROBE_ID,env,'check-connection.yml',PROBE_REF,{mode:'receive',job_id:PROBE_ID});
   const state=outcome.accepted?'probe_dispatched':outcome.status===null?'probe_uncertain':'probe_failed';
   try{await env.INBOX.prepare("UPDATE jobs SET state=? WHERE id=? AND state='probe_dispatching'").bind(state,PROBE_ID).run();}
