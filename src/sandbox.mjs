@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { lstat, realpath, mkdir, mkdtemp, writeFile, readFile, rm, chmod } from 'node:fs/promises';
 import { resolve, join, dirname, sep } from 'node:path';
 import { tmpdir } from 'node:os';
+import {diagnosticError} from './diagnostics.mjs';
 
 const MAX_FILES = 160;
 const MAX_BASE_BYTES = 1_000_000;
@@ -139,7 +140,7 @@ function execute(command, args, { spawnImpl, timeoutMs, onTimeout }) {
     try { child = spawnImpl(command, args, { env: minimalClientEnv(), shell: false, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true }); }
     catch { reject(new Error('sandbox process could not start')); return; }
     timer = setTimeout(() => {
-      finish(new Error('sandbox timed out')); void onTimeout?.(); child.kill('SIGKILL');
+      finish(diagnosticError('sandbox timed out', 'sandbox_timeout')); void onTimeout?.(); child.kill('SIGKILL');
     }, timeoutMs);
     for (const pipe of [child.stdout, child.stderr]) pipe?.on('data', (chunk) => {
       outputBytes += Buffer.byteLength(chunk);

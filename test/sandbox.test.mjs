@@ -6,6 +6,7 @@ import { mkdtemp, readFile, writeFile, rm, symlink, mkdir } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { prepareSandbox, validateTestArtifact, runRedTest } from '../src/sandbox.mjs';
+import {diagnosticDetails} from '../src/diagnostics.mjs';
 import { installUnprivilegedChildren, controllerArguments, classifyControllerFailure } from '../src/trusted-bootstrap.mjs';
 
 const artifact = { path: 'test/value.test.ts', test: "import { value } from '../src/value.js';\nimport { expect, it } from 'vitest';\nit('keeps a value', () => expect(value()).toBe(2));\n" };
@@ -205,7 +206,11 @@ test('excessive output aborts and never returns captured output', async (t) => {
 test('timeout removes the named container instead of leaving it running after CLI termination', async (t) => {
   const root = await temp(t);
   const fake = dockerMock(report, { hang: true });
-  await assert.rejects(runRedTest({ root, files, testArtifact: artifact, spawnImpl: fake.spawnImpl, timeoutMs: 2_000 }), /timed out/);
+  await assert.rejects(runRedTest({ root, files, testArtifact: artifact, spawnImpl: fake.spawnImpl, timeoutMs: 2_000 }), error => {
+    assert.match(error.message,/timed out/);
+    assert.deepEqual(diagnosticDetails(error),{code:'sandbox_timeout'});
+    return true;
+  });
   const run = fake.calls.find((entry) => entry.args[0] === 'run');
   const name = run.args[run.args.indexOf('--name') + 1];
   assert.ok(fake.calls.some((entry) => entry.args[0] === 'rm' && entry.args[2] === name));

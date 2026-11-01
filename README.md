@@ -1,5 +1,34 @@
 # Signed agent runtime
 
+## Prepared writer deadline and diagnostics fix
+
+The writer's single Gemini request may
+take up to 300 seconds; pulse retains 60 seconds. The proposed workflow has a
+10-minute overall deadline. The writer budget leaves time for the existing
+45-second isolated test, result transport and controller work. Build/setup time
+also consumes that overall deadline; no hard completion guarantee is implied.
+These are controller settings, not course requirements or daily task quotas.
+
+The runner emits fixed stage names, elapsed milliseconds and whitelisted failure
+codes. Model failures distinguish timeout, HTTP status, transport, invalid JSON,
+blocked output and incomplete output. Sandbox timeout has its own code. Logs
+never include remote error text, request/response bodies, source, test output,
+URLs, headers or credentials. Only controller-created errors carry metadata.
+The original exception is still not printed. No model retry, fallback or extra
+request is added. Worker, D1, secrets, logs and ON settings are unchanged.
+
+The owner-reviewed `writer-fix-v1` tag uses `deploy-writer.yml`. Its first job
+runs unit tests, builds the trusted toolchain and runs a synthetic isolated
+red-green control on GitHub Ubuntu, without an Environment or secrets. Only a
+successful verification permits the second job to use `mega-s01e05-deploy`.
+That job makes one PATCH to the existing Worker's settings, changing only
+RUNNER_REF from no-cap-v1 to writer-fix-v1. Every other binding is inherited
+by name. The latest Worker version must already serve 100% of traffic; no
+undeployed version is used as an inheritance source. Persisted invocation logs,
+all other protected settings and enabled public endpoints are checked before
+and after. No Worker code upload, model call, course claim or automatic rollback
+is part of the deployment workflow. On error the job stops and agents stay ON.
+
 ## Daily task quota removed
 
 Production admission has no harness-defined daily task count. The Worker and
@@ -91,7 +120,7 @@ The GitHub token has only Actions write on this dedicated repository.
 
 ## Job state and failure policy
 
-Signed ingress atomically reserves the daily budget and webhook ID in D1.
+Signed ingress atomically reserves the unique webhook ID in D1.
 Only a random job ID is sent to workflow_dispatch. The authenticated runner
 leases the private context once; the reply token remains in the inbox.
 The controller generates at most one model call and sends its validated result

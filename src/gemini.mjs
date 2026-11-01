@@ -1,3 +1,4 @@
+import {diagnosticError, preserveDiagnostic} from './diagnostics.mjs';
 const API_ROOT = 'https://generativelanguage.googleapis.com/v1beta/models/';
 const encoder = new TextEncoder();
 const record = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -26,13 +27,15 @@ async function responseText(response, maximum) {
 
 /** Native generateContent adapter. No tools, retries, provider switching or paid-tier selection. */
 export function createGeminiClient({ apiKey, models, fetchImpl = fetch, timeoutMs = 45_000, maxCalls = 2 } = {}) {
+  const timeouts = typeof timeoutMs === 'number' ? {pulse: timeoutMs, test: timeoutMs} : timeoutMs;
   if (typeof apiKey !== 'string' || !apiKey.trim() || apiKey.length > 1_000 || /[\r\n]/.test(apiKey) ||
       !record(models) || !['pulse', 'test'].every((kind) => /^[a-z0-9][a-z0-9._-]{1,100}$/.test(models[kind] ?? '')) ||
-      !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 120_000 ||
+      !record(timeouts) || !['pulse', 'test'].every(kind => Number.isSafeInteger(timeouts[kind]) && timeouts[kind] >= 1 && timeouts[kind] <= 300_000) ||
       !Number.isSafeInteger(maxCalls) || maxCalls < 1 || maxCalls > 6 || typeof fetchImpl !== 'function') {
     throw new Error('invalid model configuration');
   }
   const configuredModels = { pulse: models.pulse, test: models.test };
+  const configuredTimeouts = {pulse: timeouts.pulse, test: timeouts.test};
   let calls = 0;
   return async function generate({ kind, system, data } = {}) {
     if (!['pulse', 'test'].includes(kind) || typeof system !== 'string' || !system.trim() || system.length > 40_000 || !record(data)) {
@@ -54,19 +57,23 @@ export function createGeminiClient({ apiKey, models, fetchImpl = fetch, timeoutM
     // Reserve before the request: timeouts and quota errors do not grant a free retry.
     calls++;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), configuredTimeouts[kind]);
+    let phase = 'transport';
     try {
       const response = await fetchImpl(API_ROOT + configuredModels[kind] + ':generateContent', {
         method: 'POST', redirect: 'error', signal: controller.signal,
         headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey }, body,
       });
-      if (!response.ok) throw new Error('generation unavailable');
+      if (!response.ok) throw diagnosticError('model generation failed', 'model_http_error', {httpStatus: response.status});
+      phase = 'response';
       const result = JSON.parse(await responseText(response, 128_000));
-      if (!record(result) || result.promptFeedback?.blockReason || !Array.isArray(result.candidates) || result.candidates.length !== 1) {
+      if (record(result) && result.promptFeedback?.blockReason) throw diagnosticError('model generation failed', 'model_blocked');
+      if (!record(result) || !Array.isArray(result.candidates) || result.candidates.length !== 1) {
         throw new Error('invalid generation response');
       }
       const candidate = result.candidates[0];
-      if (candidate.finishReason !== 'STOP' || !Array.isArray(candidate.content?.parts) || !candidate.content.parts.length ||
+      if (record(candidate) && candidate.finishReason !== 'STOP') throw diagnosticError('model generation failed', 'model_incomplete', {finishReason: candidate.finishReason});
+      if (!record(candidate) || !Array.isArray(candidate.content?.parts) || !candidate.content.parts.length ||
           candidate.content.parts.some((part) => !record(part) || typeof part.text !== 'string')) {
         throw new Error('invalid generation response');
       }
@@ -75,9 +82,10 @@ export function createGeminiClient({ apiKey, models, fetchImpl = fetch, timeoutM
       const answer = JSON.parse(answerText);
       if (!record(answer)) throw new Error('invalid generation response');
       return answer;
-    } catch {
+    } catch (error) {
       // Provider bodies/errors may echo request data; expose only this fixed message.
-      throw new Error('model generation failed');
+      if (controller.signal.aborted) throw diagnosticError('model generation failed', 'model_timeout');
+      throw preserveDiagnostic(error, 'model generation failed', phase === 'transport' ? 'model_transport_error' : 'model_invalid_response');
     } finally { clearTimeout(timer); }
   };
 }

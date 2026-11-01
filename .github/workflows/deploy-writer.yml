@@ -1,0 +1,44 @@
+name: Verify and promote five-minute writer
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deploy-disabled-mega-s01e05
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.ref == 'refs/tags/writer-fix-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Unit tests with no secrets or live model
+        run: npm test
+      - name: Build trusted dependency-only toolchain
+        run: docker build --file Dockerfile.test --tag signed-test-toolchain:local .
+      - name: Synthetic isolated red-green and report protection check
+        run: node test/docker-smoke.mjs
+  promote:
+    needs: verify
+    if: github.ref == 'refs/tags/writer-fix-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    environment: mega-s01e05-deploy
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Change only the runtime ref while keeping agents ON
+        run: node src/promote-writer.mjs
+        env:
+          PROMOTE_WRITER_APPROVED: 'true'
+          CLOUDFLARE_DEPLOY_TOKEN: ${{ secrets.CLOUDFLARE_DEPLOY_TOKEN }}
