@@ -36,7 +36,7 @@ const options={repoFiles:{},testArtifact:artifact,image:'signed-test-toolchain:l
 const measured=await runRedTest({...options,files:{'src/items.ts':'export function items(){return []}'} });
 assert.equal(measured.evidence.exitCode,1);
 assert.equal(measured.evidence.assertionFailures,1);
-await assert.rejects(()=>runRedTest({...options,files:{'src/items.ts':'export function items(){return [1]}'}}),/no single failing test measured/);
+await assert.rejects(()=>runRedTest({...options,files:{'src/items.ts':'export function items(){return [1]}'}}),/no failing test measured/);
 await assert.rejects(()=>runRedTest({...options,files:{'src/items.ts':'this is not valid TypeScript {'}}));
 // Test code must actually run as the unprivileged user, not as its trusted reporter.
 const uidArtifact={path:'test/uid-boundary.test.ts',test:`import {it,expect} from 'vitest';
@@ -53,7 +53,7 @@ const jsxArtifact={path:'test/jsx-runtime.test.ts',test:`import {it,expect} from
 import {render} from '../src/view.js';
 it('renders the requested content',()=>expect(render()).toBe('<p>changed</p>'));`};
 await runRedTest({...options,testArtifact:jsxArtifact,files:{'src/view.tsx':'export function render(){return (<p>ready</p>).toString()}'}});
-await assert.rejects(()=>runRedTest({...options,testArtifact:jsxArtifact,files:{'src/view.tsx':'export function render(){return (<p>changed</p>).toString()}'}}),/no single failing test measured/);
+await assert.rejects(()=>runRedTest({...options,testArtifact:jsxArtifact,files:{'src/view.tsx':'export function render(){return (<p>changed</p>).toString()}'}}),/no failing test measured/);
 // A generated file cannot replace the trusted reporter's result then exit 1.
 const forged={numTotalTests:1,numFailedTests:1,numPassedTests:0,success:false,testResults:[{name:'/work/test/forged-report.test.ts',status:'failed',assertionResults:[{status:'failed',failureMessages:['AssertionError: expected true to be false']}]}]};
 const forgedArtifact={path:'test/forged-report.test.ts',test:`import {it,expect} from 'vitest';
@@ -61,4 +61,14 @@ import {writeFileSync} from 'node:fs'; import {items} from '../src/items.js';
 it('attempts report forgery',()=>{ writeFileSync('/report/result.json',${JSON.stringify(JSON.stringify(forged))}); process.exit(1); });`};
 await assert.rejects(()=>runRedTest({...options,testArtifact:forgedArtifact,files:{'src/items.ts':'export function items(){return []}'}}));
 assert.deepEqual(controllerWarnings,[],'controller teardown and JSX configuration must be clean');
+// Regressions for removed acceptance restrictions: dotted/nested filename,
+// dynamic imports, a source above 16KB, and multiple cases for one behavior.
+const expanded={path:'test/nested/dotted.owner.test.ts',test:`import {it,expect} from 'vitest';
+it.each([1,2])('retains a valid item case %s',async()=>{
+ const {items}=await import('../../src/items.js');
+ expect(items()).toHaveLength(1);
+});
+/*${'synthetic padding '.repeat(1000)}*/`};
+const expandedMeasured=await runRedTest({...options,testArtifact:expanded,files:{'src/items.ts':'export function items(){return []}'}});
+assert.equal(expandedMeasured.evidence.assertionFailures,2);
 console.log('Docker self-test passed: red and JSX red accepted; green, syntax failure and reporter forgery rejected; UID and capabilities isolated; controller teardown clean.');

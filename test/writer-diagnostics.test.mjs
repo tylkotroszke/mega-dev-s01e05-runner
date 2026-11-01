@@ -23,35 +23,35 @@ test('writer accepts a four-minute response that the old 60-second deadline abor
   assert.deepEqual(await result,artifact);
 });
 
-test('writer retains its finite deadline and reserves exactly one call on timeout',async(t)=>{
+test('writer retains its finite deadline and does not restart a timed-out request',async(t)=>{
   t.mock.timers.enable({apis:['setTimeout']});
   let calls=0;
-  const generate=createGeminiClient({...config,timeoutMs:MODEL_TIMEOUTS,maxCalls:1,fetchImpl:async(_url,{signal})=>{
+  const generate=createGeminiClient({...config,timeoutMs:MODEL_TIMEOUTS,fetchImpl:async(_url,{signal})=>{
     calls++;return new Promise((_resolve,reject)=>signal.addEventListener('abort',()=>reject(Error('private transport '+config.apiKey)),{once:true}));
   }});
   const failed=assert.rejects(generate(input),error=>error.message==='model generation failed'&&diagnosticDetails(error).code==='model_timeout');
   t.mock.timers.tick(299_999);assert.equal(calls,1);
   t.mock.timers.tick(1);await failed;
-  await assert.rejects(generate(input),/budget exhausted/);assert.equal(calls,1);
+  assert.equal(calls,1);
 });
 
-test('pulse deadline remains 60 seconds',async(t)=>{
+test('pulse uses the owner-approved five-minute deadline',async(t)=>{
   t.mock.timers.enable({apis:['setTimeout']});
   const generate=createGeminiClient({...config,timeoutMs:MODEL_TIMEOUTS,fetchImpl:async(_url,{signal})=>new Promise((_resolve,reject)=>signal.addEventListener('abort',()=>reject(Error('private')),{once:true}))});
   const failed=assert.rejects(generate({...input,kind:'pulse'}),error=>diagnosticDetails(error).code==='model_timeout');
-  t.mock.timers.tick(60_000);await failed;
+  t.mock.timers.tick(300_000);await failed;
 });
 
 test('safe metadata distinguishes HTTP, malformed JSON, truncation and transport without remote text',async()=>{
   const cases=[
-    [()=>new Response('PRIVATE_RESPONSE '+config.apiKey,{status:429}),{code:'model_http_error',httpStatus:429}],
+    [()=>new Response('PRIVATE_RESPONSE '+config.apiKey,{status:429,headers:{'retry-after':'3600'}}),{code:'model_http_error',httpStatus:429}],
     [()=>new Response('PRIVATE_RESPONSE'),{code:'model_invalid_response'}],
     [()=>Response.json({candidates:[{finishReason:'MAX_TOKENS'}]}),{code:'model_incomplete',finishReason:'MAX_TOKENS'}],
     [()=>Response.json({candidates:[{finishReason:'PRIVATE_RESPONSE'}]}),{code:'model_incomplete'}],
     [()=>{throw Error(config.apiKey);},{code:'model_transport_error'}],
   ];
   for(const [response,expected] of cases){
-    const generate=createGeminiClient({...config,fetchImpl:async()=>response()});
+    const generate=createGeminiClient({...config,timeoutMs:100,fetchImpl:async()=>response()});
     await assert.rejects(generate(input),error=>{
       assert.deepEqual(diagnosticDetails(error),expected);
       assert.equal(JSON.stringify(diagnosticDetails(error)).includes('PRIVATE_'),false);
@@ -86,7 +86,7 @@ async function runFailure({model=success,measure=async()=>({red:'Measured one fa
 }
 
 test('runner preserves HTTP 429 through generation wrapper, reports no secrets and sends no answer',async()=>{
-  const {failure,calls}=await runFailure({model:()=>new Response('PRIVATE_RESPONSE',{status:429})});
+  const {failure,calls}=await runFailure({model:()=>new Response('PRIVATE_RESPONSE',{status:429,headers:{'retry-after':'3600'}})});
   assert.equal(failure.stage,'test_generation');assert.equal(failure.code,'model_http_error');assert.equal(failure.httpStatus,429);
   assert.equal(calls.some(x=>x.url.endsWith('/result')),false);
 });

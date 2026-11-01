@@ -1,0 +1,49 @@
+{
+  "bindings": [
+    {
+      "name": "AUTONOMOUS_REPLIES_ENABLED",
+      "type": "inherit"
+    },
+    {
+      "name": "COURSE_ORIGIN",
+      "type": "inherit"
+    },
+    {
+      "name": "RUNNER_OWNER",
+      "type": "inherit"
+    },
+    {
+      "name": "RUNNER_REPOSITORY",
+      "type": "inherit"
+    },
+    {
+      "name": "RUNNER_WORKFLOW",
+      "type": "inherit"
+    },
+    {
+      "name": "RUNNER_REF",
+      "type": "plain_text",
+      "text": "contract-fix-v1"
+    },
+    {
+      "name": "OWNER_CODE",
+      "type": "inherit"
+    },
+    {
+      "name": "INBOX",
+      "type": "inherit"
+    },
+    {
+      "name": "PING_KEY",
+      "type": "inherit"
+    },
+    {
+      "name": "RUNNER_SHARED_KEY",
+      "type": "inherit"
+    },
+    {
+      "name": "GITHUB_ACTIONS_TOKEN",
+      "type": "inherit"
+    }
+  ]
+}

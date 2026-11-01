@@ -100,7 +100,7 @@ export function createWorker({fetchImpl=fetch,now=Date.now,uuid=()=>crypto.rando
       try { await inbox.context(); } catch { return json({error:'context unavailable'},503); }
       const reserved=await inbox.reserve({id:uuid(),webhookId:request.headers.get('webhook-id'),bodyHash:await hash(raw),payload:ping,now:now()});
       if (reserved.conflict) return json({error:'webhook ID reused with different body'},409);
-      if (!reserved.created) return json({accepted:true,duplicate:true},202);
+      if (!reserved.created && !(reserved.state==='dispatch_failed' && await inbox.retryDispatch(reserved.id))) return json({accepted:true,duplicate:true},202);
       const owner=env.RUNNER_OWNER, repo=env.RUNNER_REPOSITORY, workflow=env.RUNNER_WORKFLOW,ref=env.RUNNER_REF;
       if (![owner,repo,workflow,ref].every(x=>typeof x==='string' && /^[A-Za-z0-9_.-]+$/.test(x))) {
         await inbox.markDispatch(reserved.id,'dispatch_failed'); return json({error:'invalid runner configuration'},503);

@@ -21,7 +21,7 @@ test('pulse controller completes one model call, rereads tracker and posts only 
   }
   throw Error('unexpected URL');
  };
- assert.deepEqual(await runAgent({env,fetchImpl}),{completed:true,kind:'pulse'});
+ assert.deepEqual(await runAgent({env,fetchImpl}),{completed:true,kind:'pulse',outcome:'recommendation'});
  assert.equal(calls.filter(x=>x.url.startsWith('https://generativelanguage.googleapis.com/')).length,1);
  assert.equal(calls.filter(x=>x.url===course+'/rig/tracker/issues').length,2);
  assert.ok(!calls.some(x=>x.url.startsWith(course)&&x.options.method==='POST'));

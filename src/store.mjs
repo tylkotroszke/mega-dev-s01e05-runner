@@ -10,13 +10,16 @@ export class Inbox {
     if (!existing) throw new Error('job reservation unavailable');
     return {created:false,id:existing.id,conflict:existing.body_hash !== bodyHash,state:existing.state};
   }
+  async retryDispatch(id) {
+    return this.db.prepare("UPDATE jobs SET state='dispatching' WHERE id=? AND state='dispatch_failed' AND runner_id IS NULL RETURNING id").bind(id).first();
+  }
   async markDispatch(id,state) {
     await this.db.prepare("UPDATE jobs SET state=? WHERE id=? AND state='dispatching'").bind(state,id).run();
   }
   async lease(id,runner,now) {
     return this.db.prepare(`UPDATE jobs SET state='leased',runner_id=? WHERE id=?
-      AND state IN ('dispatching','dispatched') AND created >= ? RETURNING id,payload`)
-      .bind(runner,id,now-15*60000).first();
+      AND state IN ('dispatching','dispatched') RETURNING id,payload`)
+      .bind(runner,id).first();
   }
   async context() {
     const row = await this.db.prepare("SELECT content FROM documents WHERE name='context'").first();

@@ -113,16 +113,34 @@ test('strict origins, tracker mutations, redirect tricks and traversal rejected'
  assert.throws(()=>validateAnswer(pulse,{text:'pulse stopped: error\nmore'}));
 });
 
-test('GitHub HTTP rejection is distinct from a thrown transport error and never retried',async()=>{
+test('a new authenticated copy may recover a known GitHub rejection, without duplicate model leases',async()=>{
  for(const status of [401,403,404,422]) {
   const {worker,env,calls,logs}=setup(()=>new Response('private-upstream-body',{status}));
   assert.equal((await worker.fetch(signed(),env)).status,502);
   assert.equal(env.INBOX.sql.prepare('SELECT state FROM jobs').get().state,'dispatch_failed');
   assert.deepEqual(logs.map(x=>[x.stage,x.httpStatus,x.errorType]),[['github_response',status,null]]);
-  assert.equal((await worker.fetch(signed(),env)).status,202);
-  assert.equal(calls.length,1);
+  assert.equal((await worker.fetch(signed(),env)).status,502);
+  assert.equal(calls.length,2);
   assert.ok(!JSON.stringify(logs).includes('private-upstream-body'));
  }
+});
+
+test('a new signed copy recovers failed dispatch once, with a single lease despite concurrent duplicates',async()=>{
+ let sends=0;
+ const {worker,env}=setup(()=>new Response(null,{status:++sends===1?503:204}));
+ assert.equal((await worker.fetch(signed(),env)).status,502);
+ const replies=await Promise.all(Array.from({length:8},()=>worker.fetch(signed(),env)));
+ assert.ok(replies.every(reply=>reply.status===202));assert.equal(sends,2);
+ const {id}=env.INBOX.sql.prepare('SELECT id FROM jobs').get();
+ assert.equal((await worker.fetch(internal('/internal/jobs/'+id,'first'),env)).status,200);
+ assert.equal((await worker.fetch(internal('/internal/jobs/'+id,'second'),env)).status,409);
+});
+
+test('an accepted queued job is not denied by an invented fifteen-minute lease cutoff',async()=>{
+ const {worker,env}=setup();await worker.fetch(signed(),env);
+ const {id}=env.INBOX.sql.prepare('SELECT id FROM jobs').get();
+ env.INBOX.sql.prepare('UPDATE jobs SET created=?').run(NOW-60*60*1000);
+ assert.equal((await worker.fetch(internal('/internal/jobs/'+id),env)).status,200);
 });
 
 test('timeout and runtime exceptions retain only a bounded type, with no automatic resend',async()=>{

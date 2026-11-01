@@ -26,7 +26,7 @@ export async function checkGemini({env=process.env,modelFetch=fetch,publicFetch=
    if(calls>=2 || url!==`https://generativelanguage.googleapis.com/v1beta/models/${MODELS[kind]}:generateContent` || options.method!=='POST' || options.redirect!=='error' || JSON.stringify(JSON.parse(options.body))!==JSON.stringify(expected[calls]))throw new Error('Request differs from reviewed synthetic body');
    calls++;return modelFetch(url,options);
  };
- const generate=createGeminiClient({apiKey:env.GEMINI_API_KEY,models:MODELS,fetchImpl:guardedFetch,maxCalls:2,timeoutMs:60000});
+ const generate=createGeminiClient({apiKey:env.GEMINI_API_KEY,models:MODELS,fetchImpl:guardedFetch,retryTransient:false,timeoutMs:60000});
  const pulse=await buildPulse({ping:PULSE,context:CONTEXT,issues:[ISSUE],generate});
  if(pulse.text.startsWith('pulse stopped:') || !pulse.text.includes(PULSE.phrase) || !pulse.text.includes('#7 (open):'))throw new Error('Synthetic pulse failed');
  const artifact=await generateTest({ping:TEST,context:CONTEXT,issue:ISSUE,generate});

@@ -1,5 +1,60 @@
 # Signed agent runtime
 
+## Current contract-fix-v1 behavior
+
+Pulse reads the live tracker, quotes the ping phrase, names a relevant open
+issue and recommends the next step. Issue author is not an admission rule.
+There is no word blacklist, separate 500-character phrase cap or 1400-character
+recommendation cap. The controller adds phrase/issue facts; the model supplies
+a recommendation through native structured JSON. The complete pulse response
+has the course's 2000-character limit. Direct false completion claims still
+violate the course rule. Delivered stop messages have their own outcome/code.
+
+The test writer handles the open issue named by the authenticated ping. The
+generator, protocol and sandbox share the complete 20000-byte UTF-8 response
+budget. Dotted/nested test names and dynamic source imports are supported.
+Model-supplied red is ignored; the isolated trusted controller measures red
+on the unchanged base. More than one case in the new test file is allowed.
+
+There is no harness daily task quota, model-call counter, output-token quota,
+custom source/file-count cap, 15-minute lease expiry or sandbox CPU/RAM/PID/
+output quota. Hosting/provider limits still exist: D1 documents a 2000000-byte
+string/row boundary, so the ingress maximum follows that physical boundary.
+The disposable GitHub VM and Docker defaults bound execution resources.
+Network isolation, read-only base mounts, a private report and demoted test
+identities remain. No generated test is run on the owner's computer.
+
+Both model roles use a total 300-second generation deadline. Transient 408,
+429, 5xx and transport failures retry on the same configured model with
+exponential backoff starting at 1s (up to 60s), 0.5-1.5 jitter and Retry-After.
+Retries share that total deadline. Permanent errors and invalid model JSON
+are not retried. No fallback or billing changes occur. Normal signed jobs
+are not restricted to one provider request. Historical manually approved
+synthetic check scripts retain their own one-shot scope only.
+
+The owner-reviewed 10-minute GitHub job deadline remains; setup, generation,
+sandbox (up to 300s) and transport share that job lifetime. Reaching every
+stage's maximum cannot be guaranteed within that overall lifetime.
+
+Only a new authentic course webhook copy may retry a known failed GitHub
+dispatch; its atomic one-use lease still prevents duplicate model processing.
+Uncertain dispatches and uncertain course replies are never blindly resent.
+
+## Deployment
+
+Use deploy-contract.yml at the immutable contract-fix-v1 tag, after approval.
+It verifies unit tests and the real synthetic Docker check on GitHub Ubuntu
+without secrets, then uses the existing deployment Environment for one Worker
+module upload plus RUNNER_REF promotion. All other bindings/settings and
+persisted logs stay unchanged and agents stay ON. It performs no model call
+or course claim. Private test-writer instructions are updated separately by
+the owner-reviewed guarded database statement, never published in this repo.
+
+## Historical implementation notes
+
+Everything below describes earlier immutable tags, not current runtime rules.
+Do not reapply old OFF instructions, quotas or one-call budgets.
+
 ## Prepared writer deadline and diagnostics fix
 
 The writer's single Gemini request may

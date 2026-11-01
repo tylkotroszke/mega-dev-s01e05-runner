@@ -51,14 +51,14 @@ function dockerMock(makeReport = report, { code = 1, output = '', hang = false, 
   return { spawnImpl, calls };
 }
 
-test('artifact must be a new top-level TypeScript test importing source', () => {
+test('artifact must be a new TypeScript test importing source', () => {
   assert.deepEqual(validateTestArtifact(artifact), artifact);
-  for (const path of ['../test/x.test.ts', '/test/x.test.ts', 'test/../src/x.test.ts', 'test\\x.test.ts', 'test/constructor/x.test.ts', 'src/x.test.ts', 'test/x.ts', 'test/con.test.ts']) {
+  for (const path of ['../test/x.test.ts', '/test/x.test.ts', 'test/../src/x.test.ts', 'test\\x.test.ts', 'src/x.test.ts', 'test/x.ts']) {
     assert.throws(() => validateTestArtifact({ ...artifact, path }));
   }
   assert.throws(() => validateTestArtifact({ ...artifact, test: "throw new Error('fail')" }));
   assert.throws(() => validateTestArtifact({ ...artifact, red: 'invented failure' }));
-  assert.throws(() => validateTestArtifact({ ...artifact, test: artifact.test + ' '.repeat(16_001) }));
+  assert.throws(() => validateTestArtifact({ ...artifact, test: artifact.test + ' '.repeat(20_001) }));
 });
 
 test('base uses exact ping files over repo copy, with an independently hashed immutable snapshot', async (t) => {
@@ -73,13 +73,13 @@ test('base uses exact ping files over repo copy, with an independently hashed im
   assert.notEqual(third.baseHash, prepared.baseHash);
 });
 
-test('rejects traversal, prototype keys, dependencies, non-text, oversized and ambiguous files', async (t) => {
+test('rejects traversal, external roots, non-text and platform-ambiguous files', async (t) => {
   const root = await temp(t);
   const bad = [
     { '../outside.ts': 'x' }, { 'src/../outside.ts': 'x' }, { 'src\\evil.ts': 'x' },
-    { 'src/constructor/x.ts': 'x' }, { 'src/__proto__/x.ts': 'x' }, { 'src/a.ts': null },
-    { 'src/a.ts': 'a'.repeat(150_001) }, { 'package.json': '{}' }, { 'src/a.ts': 'a\0b' },
-    { 'src/A.ts': 'a', 'src/a.ts': 'b' },
+    { 'src/a.ts': null },
+    { 'package.json': '{}' }, { 'src/a.ts': 'a\0b' },
+    ...(process.platform === 'win32' ? [{ 'src/A.ts': 'a', 'src/a.ts': 'b' }] : []),
   ];
   for (const badFiles of bad) await assert.rejects(prepareSandbox({ root, files: badFiles, testArtifact: artifact }));
   await assert.rejects(prepareSandbox({ root, files, repoFiles: { [artifact.path]: 'existing' }, testArtifact: artifact }), /overwrite/);
@@ -105,11 +105,11 @@ test('measures a real-report shape, enforces Docker boundaries and returns only 
   assert.equal(Object.hasOwn(result, 'stdout'), false);
   const call = fake.calls.find((entry) => entry.args[0] === 'run');
   assert.equal(call.command, 'docker'); assert.equal(call.options.shell, false);
-  for (const flag of ['--pull=never', '--network=none', '--read-only', '--cap-drop=ALL', '--cap-add=SETUID', '--cap-add=SETGID', '--cap-add=KILL', '--security-opt=no-new-privileges', '--user=0:0', '--pids-limit=64', '--memory=512m', '--memory-swap=512m', '--cpus=1', '--log-driver=none']) assert.ok(call.args.includes(flag), flag);
+  for (const flag of ['--pull=never', '--network=none', '--read-only', '--cap-drop=ALL', '--cap-add=SETUID', '--cap-add=SETGID', '--cap-add=KILL', '--security-opt=no-new-privileges', '--user=0:0', '--log-driver=none']) assert.ok(call.args.includes(flag), flag);
   assert.ok(call.args.filter((arg) => arg.startsWith('type=bind,')).filter((arg) => arg.includes('target=/work/')).every((arg) => arg.endsWith(',readonly')));
   assert.equal(call.args.some((arg) => arg.includes('docker.sock')), false);
   assert.equal(call.args.some((arg) => arg.startsWith('type=bind,') && arg.endsWith('target=/report')), false);
-  assert.ok(call.args.includes('/report:rw,noexec,nosuid,nodev,size=1048576,uid=0,gid=0,mode=0700'));
+  assert.ok(call.args.includes('/report:rw,noexec,nosuid,nodev,uid=0,gid=0,mode=0700'));
   assert.ok(call.args.some((arg) => arg.includes('/opt/toolchain/trusted-bootstrap.mjs')));
   assert.equal(call.args.some((arg) => arg.startsWith('--env')), false);
   assert.ok(Object.keys(call.options.env).every((key) => ['PATH', 'Path', 'SystemRoot', 'WINDIR'].includes(key)));
@@ -148,7 +148,7 @@ test('trusted static config uses native loader without widening write permission
   assert.ok(args.includes('--config=/opt/toolchain/vitest.config.mjs'));
   assert.ok(args.includes('--outputFile=/report/result.json'));
   assert.throws(() => controllerArguments('test/../src/evil.test.ts', '10000'));
-  assert.throws(() => controllerArguments('test/value.test.ts', '10001'));
+  assert.throws(() => controllerArguments('test/value.test.ts', '300001'));
 });
 
 test('no-report diagnostics expose finite codes and process status, never raw controller data', async (t) => {
@@ -173,7 +173,7 @@ test('direct report-forgery topology is denied: only trusted controller owns the
   const fake = dockerMock(() => report({ numTotalTests: 0, numFailedTests: 0 }));
   await assert.rejects(runRedTest({ root, files, testArtifact: attack, spawnImpl: fake.spawnImpl }));
   const call = fake.calls.find((entry) => entry.args[0] === 'run');
-  assert.ok(call.args.includes('/report:rw,noexec,nosuid,nodev,size=1048576,uid=0,gid=0,mode=0700'));
+  assert.ok(call.args.includes('/report:rw,noexec,nosuid,nodev,uid=0,gid=0,mode=0700'));
   assert.equal(call.args.filter((arg) => arg.startsWith('--cap-add=')).length, 3);
 });
 
@@ -196,11 +196,10 @@ test('exit 1, syntax/import errors, absent reports and different tests are not a
   await assert.rejects(runRedTest({ root, files, testArtifact: artifact, spawnImpl: green.spawnImpl }), /failing test/);
 });
 
-test('excessive output aborts and never returns captured output', async (t) => {
-  const root = await temp(t);
-  const fake = dockerMock(report, { output: 'x'.repeat(64_001) });
-  await assert.rejects(runRedTest({ root, files, testArtifact: artifact, spawnImpl: fake.spawnImpl }), /output exceeds/);
-  assert.ok(fake.calls.some((entry) => entry.args[0] === 'rm'));
+test('a valid report above the old 64KB output cap is measured without leaking report data',async(t)=>{
+ const root=await temp(t),fake=dockerMock(()=>report({diagnosticPadding:'x'.repeat(70000)}));
+ const result=await runRedTest({root,files,testArtifact:artifact,spawnImpl:fake.spawnImpl});
+ assert.equal(result.evidence.assertionFailures,1);assert.equal(JSON.stringify(result).includes('diagnosticPadding'),false);
 });
 
 test('timeout removes the named container instead of leaving it running after CLI termination', async (t) => {

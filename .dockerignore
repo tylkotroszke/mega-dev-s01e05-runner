@@ -2,3 +2,4 @@
 !Dockerfile.test
 !src/
 !src/trusted-bootstrap.mjs
+!src/protocol.mjs

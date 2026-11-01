@@ -4,10 +4,11 @@ import {processJob} from './orchestrate.mjs';
 import {boundedText} from './protocol.mjs';
 import {runRedTest} from './sandbox.mjs';
 import {diagnosticDetails} from './diagnostics.mjs';
+import {pulseOutcome} from './agents.mjs';
 
 // Writer responses have exceeded 60s in observed provider metrics. Allow one
 // response up to the owner's chosen 5min within a 10min workflow; no retry or extra call.
-export const MODEL_TIMEOUTS = Object.freeze({pulse:60_000,test:300_000});
+export const MODEL_TIMEOUTS = Object.freeze({pulse:300_000,test:300_000});
 const STAGES = new Set(['processing','tracker','pulse_generation','test_selection','test_generation','sandbox','answer_validation','result']);
 
 export async function runAgent({env=process.env,fetchImpl=fetch,measure=runRedTest,report=()=>{}}={}) {
@@ -17,12 +18,12 @@ export async function runAgent({env=process.env,fetchImpl=fetch,measure=runRedTe
   const origin=new URL(env.AGENT_ORIGIN);
   if (origin.protocol!=='https:' || origin.username || origin.password || origin.pathname!=='/' || origin.hash || origin.search) throw new Error('invalid agent origin');
   if (typeof env.RUNNER_SHARED_KEY!=='string' || env.RUNNER_SHARED_KEY.length<32) throw new Error('runner key unavailable');
-  const generate=createGeminiClient({apiKey:env.GEMINI_API_KEY,models:{pulse:env.PULSE_MODEL,test:env.TEST_MODEL},fetchImpl,maxCalls:1,timeoutMs:MODEL_TIMEOUTS});
+  const generate=createGeminiClient({apiKey:env.GEMINI_API_KEY,models:{pulse:env.PULSE_MODEL,test:env.TEST_MODEL},fetchImpl,timeoutMs:MODEL_TIMEOUTS,report:entry=>{try{report(entry);}catch{}}});
   const url=`${origin.origin}/internal/jobs/${jobId}`;
   const headers={authorization:`Bearer ${env.RUNNER_SHARED_KEY}`,'x-runner-id':runnerId};
   const response=await fetchImpl(url,{method:'GET',redirect:'error',headers,signal:AbortSignal.timeout(15000)});
   if (!response.ok) throw new Error('job lease unavailable');
-  const job=JSON.parse(await boundedText(response,1048576));
+  const job=await response.json();
   if (job.id!==jobId) throw new Error('job identity mismatch');
   let stage='processing',started=performance.now();
   const emit=(entry)=>{try {report(entry);} catch { /* diagnostics cannot change the job outcome */ }};
@@ -39,7 +40,9 @@ export async function runAgent({env=process.env,fetchImpl=fetch,measure=runRedTe
     const result=await fetchImpl(url+'/result',{method:'POST',redirect:'error',headers:{...headers,'content-type':'application/json'},body:JSON.stringify(answer),signal:AbortSignal.timeout(30000)});
     if (!result.ok) throw new Error('result outcome requires owner review');
     emit({event:'agent_stage',stage,elapsedMs:elapsed(),state:'completed'});
-    return {completed:true,kind:job.ping.kind};
+    const outcome=job.ping.kind==='pulse'?pulseOutcome(answer):{outcome:'test'};
+    emit({event:'agent_outcome',kind:job.ping.kind,delivered:true,...outcome});
+    return {completed:true,kind:job.ping.kind,...outcome};
   } catch (error) {
     const fallback=stage==='sandbox'?'sandbox_failed':stage==='result'?'result_failed':'processing_failed';
     emit({event:'agent_failure',stage,elapsedMs:elapsed(),...diagnosticDetails(error,fallback)});
@@ -50,6 +53,6 @@ export async function runAgent({env=process.env,fetchImpl=fetch,measure=runRedTe
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  try { const result=await runAgent({report:entry=>console.log(JSON.stringify(entry))}); console.log(`agent completed: ${result.kind}`); }
+  try { const result=await runAgent({report:entry=>console.log(JSON.stringify(entry))}); console.log(result.outcome==='stopped'?'agent delivered stopped: '+result.code:`agent completed: ${result.kind}`); }
   catch { console.error('Agent stopped. No automatic retry. Inspect the redacted job state.'); process.exitCode=1; }
 }

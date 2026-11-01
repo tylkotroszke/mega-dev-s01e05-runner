@@ -1,6 +1,12 @@
 const encoder = new TextEncoder();
-export const MAX_PING_BYTES = 262144;
-export const MAX_REPLY_BYTES = 19999;
+export const MAX_PING_BYTES = 2_000_000;
+export const MAX_REPLY_BYTES = 20_000;
+export const MEASURED_RED = "Vitest reported a failing behavioral assertion in the new test on the unchanged base (exit 1).";
+export function isTestPath(path) {
+  return typeof path === "string" && path.startsWith("test/") && path.endsWith(".test.ts") && !/[\\\u0000]/.test(path) && path.split("/").every(part => part && part !== "." && part !== "..");
+}
+export function importsSource(source) { return /(?:from\s*|import\s*\(\s*|require\s*\(\s*)['"](?:\.\.\/)+src\//.test(source); }
+export function artifactFits(path,test) { return encoder.encode(JSON.stringify({path,test,red:MEASURED_RED})).length <= MAX_REPLY_BYTES; }
 
 export function courseURL(value, origin) {
   const base = new URL(origin);
@@ -28,16 +34,17 @@ export function validatePing(value, origin) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('invalid ping');
   const reply = replyURL(value.reply, origin);
   if (value.kind === 'pulse') {
-    const tracker = courseURL(value.tracker, origin);
-    if (tracker.pathname !== '/rig/tracker/issues' || tracker.search) throw new Error('invalid tracker');
-    if (value.phrase !== undefined && (typeof value.phrase !== 'string' || value.phrase.length > 500)) throw new Error('invalid phrase');
-    return { kind: 'pulse', text: typeof value.text === 'string' ? value.text.slice(0, 1000) : '', phrase: value.phrase ?? '', tracker: tracker.href, reply };
+    const tracker = value.tracker ? courseURL(value.tracker, origin) : null;
+    if (tracker && (tracker.pathname !== '/rig/tracker/issues' || tracker.search)) throw new Error('invalid tracker');
+    // Missing phrase/tracker are course stop conditions, not silent ingress failures.
+    if (value.phrase !== undefined && typeof value.phrase !== 'string') throw new Error('invalid phrase');
+    return { kind: 'pulse', text: typeof value.text === 'string' ? value.text : '', phrase: value.phrase ?? '', tracker: tracker?.href ?? '', reply };
   }
   if (value.kind !== 'test' || !Number.isSafeInteger(value.issue) || value.issue < 1 ||
       !value.files || typeof value.files !== 'object' || Array.isArray(value.files)) throw new Error('invalid test ping');
   const entries = Object.entries(value.files);
-  if (!entries.length || entries.length > 100 || entries.some(([path,text]) =>
-    typeof text !== 'string' || !/^(?:src|test|runs)\/[A-Za-z0-9_./-]+\.(?:tsx?|jsonl?)$/.test(path) ||
+  if (!entries.length || entries.some(([path,text]) =>
+    typeof text !== 'string' || !/^(?:src|test|runs)\/[^\\\u0000]+$/.test(path) ||
     path.split('/').some(p => p === '.' || p === '..' || !p) || path.includes('node_modules'))) throw new Error('invalid files');
   return {kind:'test', issue:value.issue, files:Object.fromEntries(entries), reply};
 }
@@ -100,7 +107,7 @@ export function validateAnswer(ping, value) {
     if (Object.keys(value).join() !== 'text' || typeof value.text !== 'string' || !value.text.trim() || value.text.length > 2000) throw new Error('invalid pulse answer');
     if (!/^pulse stopped: [^\r\n]+$/.test(value.text) && !value.text.includes(JSON.stringify(ping.phrase))) throw new Error('phrase missing');
   } else {
-    if (Object.keys(value).sort().join() !== 'path,red,test' || !/^test\/[A-Za-z0-9_-]+\.test\.ts$/.test(value.path ?? '') ||
+    if (Object.keys(value).sort().join() !== 'path,red,test' || !isTestPath(value.path) ||
         typeof value.test !== 'string' || !value.test.trim() || typeof value.red !== 'string' || !value.red.trim() || /[\r\n]/.test(value.red)) throw new Error('invalid test answer');
   }
   if (encoder.encode(JSON.stringify(value)).length > MAX_REPLY_BYTES) throw new Error('reply too large');

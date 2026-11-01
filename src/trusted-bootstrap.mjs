@@ -2,13 +2,14 @@ import childProcess from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
 import { lstat, open } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
+import {isTestPath} from './protocol.mjs';
 
 const CHILD_UID = 65532;
 const CHILD_GID = 65532;
 const CLI = '/opt/toolchain/node_modules/vitest/vitest.mjs';
 
 export function controllerArguments(testPath, testTimeout) {
-  if (!/^test\/[A-Za-z0-9][A-Za-z0-9._-]*\.test\.ts$/.test(testPath) || !/^\d{1,5}$/.test(testTimeout) || Number(testTimeout) < 1 || Number(testTimeout) > 10_000) throw new Error('invalid fixed-controller arguments');
+  if (!isTestPath(testPath) || !/^\d+$/.test(testTimeout) || Number(testTimeout) < 1 || Number(testTimeout) > 300_000) throw new Error('invalid fixed-controller arguments');
   // The trusted .mjs config needs no bundling. Vite's default bundle loader
   // writes beside it under /opt/toolchain/node_modules/.vite-temp, which is
   // intentionally read-only in this image.

@@ -1,4 +1,4 @@
-import {readTracker,chooseRelevantIssue,buildPulse,generateTest} from './agents.mjs';
+import {readTracker,chooseRelevantIssue,buildPulse,generateTest,stopPulse} from './agents.mjs';
 import {validateAnswer} from './protocol.mjs';
 
 // No network tools are exposed to the model. URLs and transport are controlled here.
@@ -9,7 +9,7 @@ export async function processJob(job,{generate,runRedTest,fetchImpl=fetch,onStag
   let issues;
   try { issues=await readTracker(trackerURL,{fetchImpl,courseOrigin}); }
   catch {
-    if (ping.kind==='pulse') return {text:'pulse stopped: tracker unavailable'};
+    if (ping.kind==='pulse') return stopPulse('tracker_unavailable');
     throw new Error('test tracker unavailable');
   }
   if (ping.kind==='pulse') {
@@ -19,17 +19,17 @@ export async function processJob(job,{generate,runRedTest,fetchImpl=fetch,onStag
     const selected=chooseRelevantIssue(issues,context.plan);
     let latest;
     try { latest=await readTracker(trackerURL,{fetchImpl,courseOrigin}); }
-    catch { return {text:'pulse stopped: tracker unavailable before reply'}; }
-    if (!selected || !latest.some(issue=>issue.number===selected.number && issue.state==='open' && issue.by===selected.by)) {
-      return {text:'pulse stopped: issue no longer open'};
+    catch { return stopPulse('tracker_unavailable_before_reply'); }
+    if (!selected || !latest.some(issue=>issue.number===selected.number && issue.state==='open')) {
+      return stopPulse('issue_no_longer_open');
     }
     return validateAnswer(ping,answer);
   }
   if (ping.kind!=='test') throw new Error('unknown agent kind');
   onStage('test_selection');
   const issue=issues.find(item=>item.number===ping.issue && item.state==='open');
-  // Only the plan owner's open issue is eligible; arbitrary issue instructions grant no rights.
-  const eligible=chooseRelevantIssue(issue?[issue]:[],context.plan);
+  // The authenticated test ping names the issue; its author grants no authority.
+  const eligible=issue;
   if (!eligible) throw new Error('test issue not eligible');
   onStage('test_generation');
   const artifact=await generateTest({ping,context,issue:eligible,generate});

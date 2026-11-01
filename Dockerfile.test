@@ -11,7 +11,7 @@ RUN mkdir -p /work/src /work/test /work/runs /report \
  && ln -s /opt/toolchain/node_modules /work/node_modules \
  && printf '%s\n' '{"type":"module","private":true}' > /work/package.json \
  && printf '%s\n' 'export default { root: "/work", cacheDir: "/tmp/vite-cache", oxc: { jsx: { runtime: "automatic", importSource: "hono/jsx" } }, test: { environment: "node", fileParallelism: false, maxWorkers: 1, pool: "forks", isolate: true } };' > /opt/toolchain/vitest.config.mjs
-COPY src/trusted-bootstrap.mjs /opt/toolchain/trusted-bootstrap.mjs
+COPY src/trusted-bootstrap.mjs src/protocol.mjs /opt/toolchain/
 # The trusted controller owns /report. Its bootstrap demotes every execution child
 # to UID/GID 65532 before any application/test module is loaded. SETUID/SETGID
 # demote children; KILL lets the controller terminate them. Children drop all

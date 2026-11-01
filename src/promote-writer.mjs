@@ -11,13 +11,13 @@ const EXPECTED={AUTONOMOUS_REPLIES_ENABLED:'true',COURSE_ORIGIN:'https://hq.mega
 const SECRETS=['GITHUB_ACTIONS_TOKEN','PING_KEY','RUNNER_SHARED_KEY'];
 export const SETTINGS=Object.freeze(JSON.parse(await readFile(new URL('../requests/promote-writer-settings.json',import.meta.url),'utf8')));
 export const HASHES=Object.freeze({
-  'src/runner.mjs':'386c1fcf8676133bd031145bd2b51173b4bade2434582f873dcdc1ebe39ee060',
-  'src/gemini.mjs':'f8a9bedc0135e65b74ed0f72c8a6cd2002bf183998f7e55c4e646ec324a07b6f',
-  'src/agents.mjs':'9c57a537b3014852349217dd03ef4b308ddc2c9d9d94a7c14dc24a1e46b269b7',
-  'src/orchestrate.mjs':'a3bbb533c6909bfb69feb53208c38bc1f0f2b2ba47b5b6896bd7c5ad385ed62b',
-  'src/sandbox.mjs':'b6ab4aa03e891ed8aba207e2bb3918c38174adce24543e89fdcbec8569a38d6b',
-  'src/diagnostics.mjs':'1f1cca93543ec3bf589b24b90fc7a68b6002669014de96705e60145fc87dbf20',
-  '.github/workflows/agents.yml':'d4bad177590da866cc7dc63edfc96fec01037ae0bdd2331e2689bcaf7f794857',
+  "src/runner.mjs": "a694fa3a69ccf314f9edfb385ba8250da82e87169f98e9d685e636c0fc34a681",
+  "src/gemini.mjs": "b83446c8d1dac0c4fc4788d435ff5bac7e29f6bc1dc4d62bfc1c34ddaeb936d9",
+  "src/agents.mjs": "2078457cc03c4dd0a20baa2d45e80a95590bffcf991ec8d26753e7fe70fb15b6",
+  "src/orchestrate.mjs": "df143253dffcf3d28bcac87336ecbfb83bbaf242895bcefd1652e5dbe1e5e2b2",
+  "src/sandbox.mjs": "27cc324f076c183ea8c31a580d2b8dbdd4a25aec83e7ce7d3bfa4862e6debd1e",
+  "src/diagnostics.mjs": "1f1cca93543ec3bf589b24b90fc7a68b6002669014de96705e60145fc87dbf20",
+  ".github/workflows/agents.yml": "d4bad177590da866cc7dc63edfc96fec01037ae0bdd2331e2689bcaf7f794857"
 });
 const canonical=value=>JSON.stringify(value,(_key,item)=>item&&typeof item==='object'&&!Array.isArray(item)?Object.fromEntries(Object.entries(item).sort(([a],[b])=>a.localeCompare(b))):item);
 const uuid=value=>/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value??'');
