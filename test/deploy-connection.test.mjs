@@ -4,7 +4,7 @@ import {deployConnection,METADATA,HASHES} from '../src/deploy-connection.mjs';
 const token='synthetic-deploy-token-not-a-real-credential';
 const vars={AUTONOMOUS_REPLIES_ENABLED:'false',MAX_JOBS_PER_DAY:'6',COURSE_ORIGIN:'https://hq.mega.dev',RUNNER_OWNER:'tylkotroszke',RUNNER_REPOSITORY:'mega-dev-s01e05-runner',RUNNER_WORKFLOW:'agents.yml',RUNNER_REF:'approved-v1',OWNER_CODE:'own-synthetic'};
 const settings=()=>({compatibility_date:'2026-10-31',bindings:[...Object.entries(vars).map(([name,text])=>({type:'plain_text',name,text})),{type:'d1',name:'INBOX',id:'e04e51bc-7677-4672-822c-e1d950b77735'},...['PING_KEY','RUNNER_SHARED_KEY','GITHUB_ACTIONS_TOKEN'].map(name=>({type:'secret_text',name}))],observability:{enabled:true,logs:{enabled:true}}});
-const options={token,ref:'refs/tags/connection-check-v1',approved:'true',delay:async()=>{}};
+const options={token,ref:'refs/tags/connection-check-v2',approved:'true',delay:async()=>{}};
 const json=x=>Response.json(x);
 function transport({changeSettings,putResponse,health}={}){
  const calls=[];

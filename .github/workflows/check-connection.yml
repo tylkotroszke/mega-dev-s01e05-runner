@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   check:
-    if: github.ref == 'refs/tags/connection-check-v1'
+    if: github.ref == 'refs/tags/connection-check-v2'
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     environment: mega-s01e05

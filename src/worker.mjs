@@ -13,6 +13,7 @@ export function createWorker({fetchImpl=fetch,now=Date.now,uuid=()=>crypto.rando
       const message=typeof error?.message==='string'?error.message:'';
       const errorCode=!error?null:error.name==='TimeoutError'?'timeout':error.name==='AbortError'?'aborted':
         message.includes('Illegal invocation')?'invalid_this':
+        message.includes('Invalid redirect value')?'invalid_redirect':
         /ByteString|invalid header|header value/i.test(message)?'invalid_header':
         /I\/O.*(?:global scope|different request)/i.test(message)?'io_context':'unclassified';
       log({event:'runner_dispatch',jobId:/^[a-f0-9-]{36}$/.test(id)?id:null,stage,
@@ -25,7 +26,7 @@ export function createWorker({fetchImpl=fetch,now=Date.now,uuid=()=>crypto.rando
     const started=now();
     try {
       const response=await fetchImpl(`https://api.github.com/repos/${env.RUNNER_OWNER}/${env.RUNNER_REPOSITORY}/actions/workflows/${workflow}/dispatches`,{
-        method:'POST',redirect:'error',headers:{authorization:`Bearer ${env.GITHUB_ACTIONS_TOKEN}`,accept:'application/vnd.github+json','content-type':'application/json','x-github-api-version':'2026-03-10','user-agent':'signed-agent-runtime'},
+        method:'POST',redirect:'manual',headers:{authorization:`Bearer ${env.GITHUB_ACTIONS_TOKEN}`,accept:'application/vnd.github+json','content-type':'application/json','x-github-api-version':'2026-03-10','user-agent':'signed-agent-runtime'},
         body:JSON.stringify({ref,inputs}),signal:AbortSignal.timeout(12000)});
       diagnostic(id,'github_response',started,response.status);
       return {accepted:[200,204].includes(response.status),status:response.status};
@@ -82,7 +83,7 @@ export function createWorker({fetchImpl=fetch,now=Date.now,uuid=()=>crypto.rando
           if (!await inbox.sending(job.id,runner,answer)) return json({error:'already sent'},409);
           let response;
           try {
-            response=await fetchImpl(ping.reply,{method:'POST',redirect:'error',headers:{'content-type':'application/json'},body:JSON.stringify(answer),signal:AbortSignal.timeout(15000)});
+            response=await fetchImpl(ping.reply,{method:'POST',redirect:'manual',headers:{'content-type':'application/json'},body:JSON.stringify(answer),signal:AbortSignal.timeout(15000)});
           } catch { await inbox.finish(job.id,'reply_uncertain'); return json({error:'reply outcome uncertain; owner review needed'},502); }
           const accepted=response.status===202 || response.status===409;
           await inbox.finish(job.id,accepted?'answered':'reply_rejected',response.status);

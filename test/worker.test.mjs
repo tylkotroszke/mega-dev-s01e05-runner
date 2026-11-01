@@ -57,7 +57,7 @@ test('concurrent duplicates reserve once and public dispatch inputs contain only
  const {worker,env,calls}=setup();
  const responses=await Promise.all(Array.from({length:5},()=>worker.fetch(signed(),env)));
  assert.ok(responses.every(x=>x.status===202));assert.equal(calls.length,1);
- assert.equal(calls[0].options.redirect,'error');
+ assert.equal(calls[0].options.redirect,'manual');
  const body=JSON.parse(calls[0].options.body);assert.deepEqual(Object.keys(body.inputs),['job_id']);
  assert.ok(!calls[0].options.body.includes(pulse.reply));
  assert.equal((await worker.fetch(signed({...pulse,phrase:'changed'}),env)).status,409);
@@ -82,7 +82,7 @@ test('result sends once to original signed reply; public response contains no da
  assert.equal((await worker.fetch(internal(`/internal/jobs/${id}/result`,'run-1',answer),env)).status,200);
  assert.equal((await worker.fetch(internal(`/internal/jobs/${id}/result`,'run-1',answer),env)).status,409);
  assert.equal(calls.length,2);assert.equal(calls[1].url,pulse.reply);
- assert.equal(calls[1].options.redirect,'error');
+ assert.equal(calls[1].options.redirect,'manual');
  const row=env.INBOX.sql.prepare('SELECT * FROM jobs WHERE id=?').get(id);
  assert.equal(row.payload,null);assert.equal(row.answer,null);assert.equal(row.state,'answered');
 });
@@ -170,4 +170,27 @@ test('known runtime error messages map to fixed diagnostic codes without raw con
   assert.equal((await worker.fetch(signed(),env)).status,502);assert.equal(logs[0].errorCode,code);
   assert.ok(!JSON.stringify(logs).includes(SHARED));assert.ok(!JSON.stringify(logs).includes(KEY));
  }
+});
+
+test('Worker uses supported redirect mode when the transport enforces Cloudflare Request semantics',async()=>{
+ const {worker,env,calls}=setup((url,options)=>{
+  if(options.redirect==='error')throw new TypeError('Invalid redirect value, must be one of "follow" or "manual"');
+  assert.equal(options.redirect,'manual');return new Response(null,{status:204});
+ });
+ assert.equal((await worker.fetch(signed(),env)).status,202);
+ assert.equal(calls.length,1);
+ assert.equal(env.INBOX.sql.prepare('SELECT state FROM jobs').get().state,'dispatched');
+});
+
+test('manual redirect mode rejects GitHub and course redirects without following Location',async()=>{
+ const github=setup(()=>new Response(null,{status:302,headers:{location:'https://other.example/leak'}}));
+ assert.equal((await github.worker.fetch(signed(),github.env)).status,502);
+ assert.equal(github.calls.length,1);assert.equal(github.env.INBOX.sql.prepare('SELECT state FROM jobs').get().state,'dispatch_failed');
+ const course=setup(url=>new Response(null,{status:url.startsWith(ORIGIN)?302:204,headers:{location:'https://other.example/leak'}}));
+ await course.worker.fetch(signed(),course.env);const id=JSON.parse(course.calls[0].options.body).inputs.job_id;
+ await course.worker.fetch(internal(`/internal/jobs/${id}`),course.env);
+ assert.equal((await course.worker.fetch(internal(`/internal/jobs/${id}/result`,'run-1',{text:'pulse stopped: tracker unavailable'}),course.env)).status,502);
+ assert.equal(course.calls.length,2);assert.equal(course.calls[1].options.redirect,'manual');
+ assert.equal(course.env.INBOX.sql.prepare('SELECT state FROM jobs').get().state,'reply_rejected');
+ assert.ok([...github.calls,...course.calls].every(c=>!c.url.startsWith('https://other.example')));
 });

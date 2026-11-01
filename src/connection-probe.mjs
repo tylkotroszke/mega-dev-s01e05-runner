@@ -1,7 +1,7 @@
 import {boundedText,equalSecret,hash} from './protocol.mjs';
 
-export const PROBE_ID='92d4685c-7e36-4be4-9cd7-a5915146537a';
-export const PROBE_REF='connection-check-v1';
+export const PROBE_ID='6d795aa2-9807-4df1-9316-fc872fd439cd';
+export const PROBE_REF='connection-check-v2';
 export const PROBE_PATH='/internal/connection-probe';
 const json=(value,status=200)=>Response.json(value,{status,headers:{'cache-control':'no-store'}});
 

@@ -10,7 +10,12 @@ Do not use a repository secret instead of the selected Environment.
 
 ## One-use connection check
 
-The reviewed `connection-check-v1` tag adds `deploy-connection.yml` and
+Worker subrequests use Cloudflare-supported `redirect: "manual"` and reject
+unexpected 3xx statuses without following Location. Node-only controllers and
+deployment scripts retain standard `redirect: "error"`. Regression tests model
+the documented Cloudflare rejection of the unsupported Worker error mode.
+
+The reviewed `connection-check-v2` tag adds `deploy-connection.yml` and
 `check-connection.yml`. Both agents must stay OFF. The deployment uploads
 exactly four hashed ES modules, retaining the eight variables, D1 binding,
 three secret bindings and enabled invocation/persisted logs. It installs no
@@ -22,7 +27,7 @@ After the separate owner approval, one manual start phase authenticates to
 The Worker dispatches one receive phase using its existing GitHub Actions
 secret. The receiver leases and completes only the synthetic diagnostic job.
 It receives no context and has no model key, Docker step or course callback.
-The fixed public identifier is `92d4685c-7e36-4be4-9cd7-a5915146537a`.
+The fixed public identifier is `6d795aa2-9807-4df1-9316-fc872fd439cd`.
 Admission is atomic and usable once across all days, including after failure.
 The probe consumes one existing daily job slot, with zero model calls.
 Do not delete or reset its row to obtain another attempt.

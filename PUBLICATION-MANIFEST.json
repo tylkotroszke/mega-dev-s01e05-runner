@@ -1,6 +1,6 @@
 {
-  "parent": "6bbc8361e59ae687621d81515a96a89f779bd745",
-  "newTag": "connection-check-v1",
+  "parent": "defa13cbb886c82ac1696b698b90af5e1cfb11ec",
+  "newTag": "connection-check-v2",
   "files": [
     {
       "path": ".dockerignore",
@@ -15,7 +15,7 @@
     {
       "path": ".github/workflows/check-connection.yml",
       "bytes": 1250,
-      "sha256": "da2f5c0041accd06cdd0b9016ef0eb9505185f963323faad55ff756dd99d3f51"
+      "sha256": "b96a01226a04ee0e9c27a51ec0929f8d0bdb327b2f837220257efdf1ba94570e"
     },
     {
       "path": ".github/workflows/check-gemini.yml",
@@ -25,7 +25,7 @@
     {
       "path": ".github/workflows/deploy-connection.yml",
       "bytes": 837,
-      "sha256": "8d6900f97caaffd68a2d7fd02012a80b1d59db2841db93679c6c4f08f38cf2e1"
+      "sha256": "c9d76456968ca173da61e04fde7ca95cc76bf4e7c93364327f34b009bc246887"
     },
     {
       "path": ".github/workflows/deploy-disabled.yml",
@@ -54,28 +54,28 @@
     },
     {
       "path": "README.md",
-      "bytes": 5427,
-      "sha256": "8a554bb5bd38462001b0ab632bc17729b5f166aac7eb099cef8a39e7fd30b6c0"
+      "bytes": 5735,
+      "sha256": "a8ee2fdf04cefc08f760198b427e2bcd38582635b3f0a02f15f2a13c70acba94"
     },
     {
       "path": "requests/connection-deploy.json",
       "bytes": 42,
-      "sha256": "74b86497adac81a1a9fd97843c5aacc435ed8f75f377f7fe6725cd04f1541bab"
+      "sha256": "3be27bae6afc05697d162049413b66379ccef2c0ded4bd0f51fa04da413d3df1"
     },
     {
       "path": "requests/connection-policy.json",
       "bytes": 44,
-      "sha256": "54b085d00e9901df4e8eb139a7dc3cc8247468715af81878162046cfacd8b608"
+      "sha256": "65c6c1022559b77fd79f184fd8deac90c55cd8b731b9acc7bb9d82b425500a04"
     },
     {
       "path": "requests/connection-receive.json",
       "bytes": 106,
-      "sha256": "796e53cb73fbfaefb52c8af41473cc371fcb1337dc5e15b97835716cbe90a1c3"
+      "sha256": "7dbdd1f2e9ed1c272c12c0fde20ce4a3dc7d92618a8a28b5b17248891fdadc25"
     },
     {
       "path": "requests/connection-start.json",
       "bytes": 104,
-      "sha256": "84dc9211abf8d5158dfa3f9dc28f363ee443a5b124e7473e5268b29349d6ce2f"
+      "sha256": "7dc7f9ea93d4298cb79dcefc0cc50a8ec2d0140b3043008d5eb07836de3381f5"
     },
     {
       "path": "requests/gemini-pulse.json",
@@ -90,12 +90,12 @@
     {
       "path": "requests/worker-probe-result.json",
       "bytes": 61,
-      "sha256": "e105a0ad6f4a9def275a99c77a32acb15a0a80aa5a3037c4463e30387c367ee3"
+      "sha256": "885f15ecede92fab37e82cf935eb63fa79dc982222117e3104ea860ec3a6480f"
     },
     {
       "path": "requests/worker-probe-start.json",
       "bytes": 51,
-      "sha256": "93772abd79cfaf6d7447e0ac91c04028663da30165bc375e7ce34d778234b1b0"
+      "sha256": "86205730aa7b28e69c586417204ef6349685645a705ce142c19ffdb8cd7fee6a"
     },
     {
       "path": "schema.sql",
@@ -125,12 +125,12 @@
     {
       "path": "src/connection-probe.mjs",
       "bytes": 3954,
-      "sha256": "7ac7855412430f6dde463f0a86ee1784cfcb00fa1d895d4867b9e5152ede1e3c"
+      "sha256": "b9a0e6dc9ac07d3b674e877efda72ffb9c3a61c5ba20a28d7bb5cd31bc08115e"
     },
     {
       "path": "src/deploy-connection.mjs",
       "bytes": 6620,
-      "sha256": "bd0437c9ac401b2cadd6b2538b5ce61a7114b5832dd0e4231fb3bc55a5cc3858"
+      "sha256": "71926afc54c3c8f77bd3e324d2b85e3e9334eb4555f9e80b03e30b3697f57be1"
     },
     {
       "path": "src/deploy-disabled.mjs",
@@ -179,8 +179,8 @@
     },
     {
       "path": "src/worker.mjs",
-      "bytes": 8994,
-      "sha256": "b60fdf18e16eadc500fb32e2e90ef83ad0636220e278316a26d4319039ab8542"
+      "bytes": 9067,
+      "sha256": "df3336fa1bdd48b065568d7efad3e5e48028dd7fbc799ff65b8637a932d69157"
     },
     {
       "path": "test/agents.test.mjs",
@@ -200,7 +200,7 @@
     {
       "path": "test/deploy-connection.test.mjs",
       "bytes": 4674,
-      "sha256": "b3e55482557b18b8ce3133f7c7b6d468912bf44048d17c6cbae6ad243a863f02"
+      "sha256": "0683daddb0a57593ce721588b2a12dbf2c319ca467779a604f94b3c184de2a69"
     },
     {
       "path": "test/deploy-disabled.test.mjs",
@@ -234,8 +234,8 @@
     },
     {
       "path": "test/worker.test.mjs",
-      "bytes": 11884,
-      "sha256": "4f5519faae8afc916105715259474d1ab866a8692ef5920a66c55b8f2a7ff17b"
+      "bytes": 13635,
+      "sha256": "8c5362b45df0039d5401d5b7a5a5e25584f2089ca996e9d8610e8f1c0135563c"
     },
     {
       "path": "wrangler.json",
